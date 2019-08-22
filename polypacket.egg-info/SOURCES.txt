@@ -1,0 +1,17 @@
+README.md
+setup.py
+polypacket/__init__.py
+polypacket/poly-packet
+polypacket.egg-info/PKG-INFO
+polypacket.egg-info/SOURCES.txt
+polypacket.egg-info/dependency_links.txt
+polypacket.egg-info/top_level.txt
+polypacket/templates/app_template.c
+polypacket/templates/app_template.h
+polypacket/templates/c_header_template.h
+polypacket/templates/c_source_template.c
+polypacket/templates/cmake_template.txt
+polypacket/templates/doc_template.html
+polypacket/templates/doc_template.md
+polypacket/templates/javascript_template.js
+polypacket/templates/util_main_template.c
