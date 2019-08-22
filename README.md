@@ -4,8 +4,6 @@ Poly Packet is backend and code generation tool for creating messaging protocols
 
 A python script is used to parse the XML file and generate code as well as documentation. The code generation tool can create the back end service, app layer, and even an entire linux utility app
 
-
-
 ## Protocol Generation
 
 Protocols are generated using XML. The messaging structure is made up 3 entity types:
@@ -120,16 +118,17 @@ It then lists the packets, and which fields are in each packet. fields are consi
 
 ## Using Poly Packet
 
-To use poly packet, write your xml to define the fields and packets in your protocol. Then use the make_service.py python script to generate the source code.
+To use poly packet, write your xml to define the fields and packets in your protocol. Then use poly-packet to generate the source code.
 
 
 >the mako module is required (pip install mako)
 ```bash
-./make_service.py -i sample_protocol.xml -o . -a
+poly-packet -i sample_protocol.xml -o . -a
 ```
 * -i is for input file, this will be the xml file used
 * -o is the output directory, this is where the code and documentation will be generated
 * -a tells the tool to create an application layer for you
+* -u specifies a path to create a standalone serial utility for the service
 
 >by default all functions will start with the prefix 'pp'. but the 'prefix' attribute can be used in the xml to set a different prefix. this allows the use of multiple services/protocols in a single project without conflict
 

@@ -10,7 +10,7 @@ setuptools.setup(
      long_description=long_description,
      scripts=['polypacket/poly-packet'],
    long_description_content_type="text/markdown",
-     url="https://github.com/javatechy/dokr",
+     url="http://www.up-rev.com/",
      packages=setuptools.find_packages(),
      package_data={
      'polypacket':['templates/*'],

@@ -102,12 +102,12 @@ void app_${proto.name.lower()}_process()
   Packet handlers
 *******************************************************************************/
 % for packet in proto.packets:
-% if not packet.standard:
+%if not packet.standard:
 %if not packet.hasResponse:
 /**
   *@brief Handler for receiving ${packet.name} packets
   *@param ${packet.name} incoming ${packet.name} packet
-  *@return handling status
+  *@return handling ${proto.prefix}_status
   */
 HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet_t* ${proto.prefix}_${packet.name})
 %else:
@@ -115,53 +115,46 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
   *@brief Handler for receiving ${packet.name} packets
   *@param ${packet.name} incoming ${packet.name} packet
   *@param ${packet.response.name} ${packet.response.name} packet to respond with
-  *@return handling status
+  *@return handling ${proto.prefix}_status
   */
 HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet_t* ${proto.prefix}_${packet.name}, ${proto.prefix}_packet_t* ${proto.prefix}_${packet.response.name})
 %endif
 {
   /*  Get Required Fields in packet */
 % for field in packet.fields:
-%if field.isRequired:
-  ${field.getParamType()} ${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});    //${field.desc}
-%endif
-% endfor
+  ${field.getDeclaration()};  //${field.desc}
+%endfor
+
 % for field in packet.fields:
-%if field.isRequired and field.isEnum:
-  switch(${field.name})
-  {
-  % for val in field.vals:
-    case ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()}:
-      // ${val.desc}
-      break;
-  % endfor
-  }
-%endif
+  %if field.isArray:
+  ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name});
+  %else:
+  ${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});
+  %endif
 % endfor
 %if packet.hasResponse:
   /*    Set required Fields in response  */
 % for field in packet.response.fields:
-%if field.isRequired:
-  //${proto.prefix}_set${field.camel()}(${proto.prefix}_${packet.response.name}, value );   //${field.desc}
-%endif
+  //${proto.prefix}_set${field.camel()}(${proto.prefix}_${packet.response.name}, value );  //${field.desc}
 %endfor
 %endif
 
 
-  return PACKET_HANDLED;
+
+  return PACKET_NOT_HANDLED;
 }
 
-% endif
+%endif
 % endfor
 
 /**
   *@brief catch-all handler for any packet not handled by its default handler
   *@param metaPacket ptr to ${proto.prefix}_packet_t containing packet
-  *@return handling status
+  *@return handling ${proto.prefix}_status
   */
 HandlerStatus_e ${proto.prefix}_default_handler( ${proto.prefix}_packet_t * ${proto.prefix}_packet)
 {
 
 
-  return PACKET_HANDLED;
+  return PACKET_NOT_HANDLED;
 }

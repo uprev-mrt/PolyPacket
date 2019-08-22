@@ -387,6 +387,7 @@ class protocolDesc:
         self.snippets = False
         self.genUtility = False
         self.xmlName =""
+        self.utilName =""
 
     def service(self):
         return self.prefix.upper() +'_SERVICE'
@@ -601,6 +602,8 @@ def addSubModule(gitpath, suburl, subpath):
 
 
 def genUtility(protocol, xmlFile, path):
+    protocol.utilName = os.path.basename(path)
+    path+="/"
     srcPath = path +"src/"
     libPath = path +"src/lib/"
     buildPath = path+"build/"
@@ -666,9 +669,10 @@ def main():
 
     fileCrc = crc(xmlFile)
 
-
+    print( "Parsing " + xmlFile)
     protocol = parseXML(xmlFile)
     protocol.hash = fileCrc
+    print( "Protocol "+ protocol.name+ " generated!")
     protocol.genTime = now.strftime("%m/%d/%y")
 
     protocol.snippets = args.snippets
@@ -687,7 +691,8 @@ def main():
         buildTemplate(protocol,  'templates/javascript_template.js', jsPath + protocol.fileName+".js");
 
     if(utilPath != ""):
-        genUtility(protocol,xmlFile, utilPath+"/")
+        print ("Generating Utility from:" +xmlFile)
+        genUtility(protocol,xmlFile, utilPath)
 
     if(path != ""):
         buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")

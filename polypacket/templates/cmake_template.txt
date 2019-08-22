@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
+project(${proto.utilName})
+
 include_directories("MrT/Modules")
 include_directories("src")
 include_directories("src/lib")
@@ -14,6 +16,7 @@ add_definitions(
 
 SET(CMAKE_C_FLAGS "-Wformat=0")
 
+add_subdirectory(MrT/Modules/Utilities/JSON)
 add_subdirectory(MrT/Modules/Utilities/PolyPacket)
 add_subdirectory(MrT/Modules/Platforms/Linux)
 
@@ -25,11 +28,11 @@ add_library(
 
 
 add_executable(
-  ${proto.name}_util
+  ${proto.utilName}
   src/main.c
   src/app_${proto.name.lower()}.c
   )
 
-target_link_libraries(${proto.fileName}_lib PolyPacket mrtLinux)
+target_link_libraries(${proto.fileName}_lib mrtPolyPacket mrtLinux)
 
-target_link_libraries(${proto.name}_util ${proto.fileName}_lib )
+target_link_libraries(${proto.utilName} ${proto.fileName}_lib )

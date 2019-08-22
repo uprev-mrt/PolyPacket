@@ -26,24 +26,31 @@ void printUsage(const char* name);
 int main(int argc, char* argv[])
 {
   int opt;
-  void catch_sigterm(); /* so we can exit gracefulyl with ctrl+c  */
+    int baud = 9600;
+    char* portName = "/dev/ttyUSB0";
 
-  /* Look for options. */
-    while ((opt = getopt(argc, argv, "mp")) != -1)
-    {
-        switch (opt)
-        {
-            case 'm':
-            {
-              break;
-            }
-            default:
-            {
-                printUsage(argv[0]);
+    void catch_sigterm(); /* so we can exit gracefulyl with ctrl+c  */
+
+    /* Look for options. */
+      while ((opt = getopt(argc, argv, "mb:p:")) != -1)
+      {
+          switch (opt)
+          {
+              case 'm':
                 break;
-            }
-        }
-    }
+              case 'p':
+                portName = optarg;
+                break;
+              case 'b':
+                baud = atoi(optarg);
+                break;
+              default:
+              {
+                  printUsage(argv[0]);
+                  break;
+              }
+          }
+      }
 
     /* Initialize app/service */
     app_${proto.name.lower()}_init("/dev/ttyUSB0", 9600);
@@ -131,23 +138,24 @@ ${field.getFormat()} \
 
 void printUsage(const char* name)
 {
-  printf("Usage: %s [OPTIONS] [PacketType] [Parameterss]\n", name );
-  printf("Available Packet Types:\n" );
+  printf("Usage: %s [OPTIONS] [PacketType] [Parameterss]\n"
+         "Available Packet Types:\n",name );
 
 %for packet in proto.packets:
 %if not packet.standard:
 
-  printf("\n/*******************************************************************\n");
-  printf("    ${packet.name}  - ${packet.desc}\n");
-  printf("*******************************************************************/\n");
-  printf("${packet.name}  \
+  printf("\n/*****************************************************************************\n"
+         "    ${packet.name}  - ${packet.desc}\n"
+         "*******************************************************************************/\n"
+         "${packet.name}  \
   %for field in packet.fields:
-  ${field.name} \
+  <${field.name}> \
   %endfor
-  \n");
+  \n"
 %for field in packet.fields:
-  printf("\t${field.name} [${field.cType}] - ${field.desc} \n");
+         "\t${field.name} [${field.cType}] - ${field.desc} \n"
 %endfor
+         );
 %endif
 %endfor
   exit(1);
