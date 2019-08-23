@@ -20,7 +20,6 @@ from shutil import copyfile
 from mako.template import Template
 import pkgutil
 import polypacket
-import pygit2
 import subprocess
 
 args = None
@@ -592,6 +591,8 @@ def buildTemplate(protocol, templateFile, outputFile):
     #text_file.write(template.render(proto = protocol))
     text_file.close()
 
+def initRepo(path):
+    subprocess.check_output(['git','init',path] )
 
 
 def addSubModule(gitpath, suburl, subpath):
@@ -613,7 +614,7 @@ def genUtility(protocol, xmlFile, path):
 
     if not os.path.isdir(path):
         os.makedirs(path)
-        pygit2.init_repository(path)
+        initRepo(path)
         addSubModule(path, "git@bitbucket.org:uprev/utility-polypacket.git" ,"Mrt/Modules/Utilities/PolyPacket")
         addSubModule(path, "git@bitbucket.org:uprev/utility-json.git" ,"Mrt/Modules/Utilities/JSON")
         addSubModule(path, "git@bitbucket.org:uprev/platform-common.git" ,"Mrt/Modules/Platforms/Common")
