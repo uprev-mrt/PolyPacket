@@ -59,32 +59,20 @@ int main(int argc, char* argv[])
   pthread_t thread_id;
 
   int interface_mode = UART_MODE;
-  int baud = 9600;
-  char* portName = "/dev/ttyUSB0";
-  char* remoteHost = NULL;
-  uint16_t udpPort = 8020;
+  char* connString;
   printf(KGRN);
 
 
   /* Look for options. */
-    while ((opt = getopt(argc, argv, "mb:p:u:t:")) != -1)
+    while ((opt = getopt(argc, argv, "s:u:")) != -1)
     {
         switch (opt)
         {
-            case 'm':
-              break;
-            case 'p':
-              portName = optarg;
-              break;
-            case 'b':
-              baud = atoi(optarg);
+            case 's':
+              connString = optarg;
               break;
             case 'u':
-              udpPort = atoi(optarg);
-              interface_mode = UDP_MODE;
-              break;
-            case 't':
-              remoteHost = optarg;
+              connString = optarg;
               interface_mode = UDP_MODE;
               break;
             default:
@@ -96,7 +84,7 @@ int main(int argc, char* argv[])
     }
 
   /* Initialize app/service */
-  app_${proto.name.lower()}_init(portName, baud);
+  app_${proto.name.lower()}_init(connString, interface_mode);
 
 
   pthread_create(&thread_id, NULL, processThread, NULL);
@@ -104,7 +92,7 @@ int main(int argc, char* argv[])
 
   while(1)
   {
-      input = readline(">>");
+      input = readline("\033[1;32m>>");
       if(input != NULL)
       {
         add_history(input);
@@ -178,7 +166,7 @@ ${field.getFormat()} \
   }
 %endif
 %endfor
-  else if(!strcasecmp(messageType, "exit()"))
+  else if(!strcasecmp(messageType, "x"))
   {
     quit();
   }

@@ -12,23 +12,32 @@
 #include "app_${proto.name.lower()}.h"
 %if proto.genUtility:
 #include "Platforms/Linux/linux_uart.h"
-%endif
+#include "Platforms/Linux/linux_udp.h"
 
-static uint8_t iface0_rx_buf[512];
-%if proto.genUtility:
+int ifaceMode;
+udp_stream udp;
 int fd;
-static char printBuf[512];
 
 #define ${proto.prefix.upper()}_PRINT(packet) fp_print_json((packet),printBuf); printf("%s",printBuf)
 %else:
 mrt_uart_handle_t ifac0;
 %endif
+static uint8_t iface0_rx_buf[512];
+static char printBuf[512];
 
 static inline HandlerStatus_e iface0_write(uint8_t* data, int len)
 {
   /* Place code for writing bytes on interface 0 here */
 %if proto.genUtility:
-  uart_write(fd,data,len);
+  switch (ifaceMode)
+  {
+    case UART_MODE:
+      uart_write(fd,data,len);
+      break;
+    case UDP_MODE:
+      udp_send(&udp,data,len);
+      break;
+  }
 %else:
   MRT_UART_TX(ifac0, data, len, 10);
 %endif
@@ -39,13 +48,22 @@ static inline HandlerStatus_e iface0_write(uint8_t* data, int len)
 
 static inline void iface0_read()
 {
-
+  int len =0;
   /* Place code for reading bytes from interface 0 here */
 %if proto.genUtility:
-  int len = uart_read(fd,iface0_rx_buf, 32);
+  switch (ifaceMode)
+  {
+    case UART_MODE:
+      len = uart_read(fd,iface0_rx_buf, 32);
+      break;
+    case UDP_MODE:
+      len = udp_recv(&udp,iface0_rx_buf,512);
+      break;
+  }
+
 %else:
   //TODO read bytes from interface to iface0_rx_buf
-  int len = MRT_UART_RX(ifac0, iface0_rx_buf, 32);  //read 32 bytes at a time
+  len = MRT_UART_RX(ifac0, iface0_rx_buf, 32);  //read 32 bytes at a time
 %endif
 
   ${proto.prefix}_service_feed(0,iface0_rx_buf, len);
@@ -55,13 +73,24 @@ static inline void iface0_read()
   App Init/end
 *******************************************************************************/
 %if proto.genUtility:
-void app_${proto.name.lower()}_init(const char* port, int baud)
+void app_${proto.name.lower()}_init(const char* connectionStr, int mode)
 {
   /* initialize peripheral for iface_0 */
-  if(uart_open(&fd,port, baud))
-    printf("successfully opened port: %s\n",port);
-  else
-    printf("Could not open port: %s",port);
+  ifaceMode = mode;
+
+  switch(ifaceMode)
+  {
+    case UART_MODE:
+    if(uart_init(&fd, connectionStr))
+      printf("successfully opened port: %s\n",connectionStr);
+    else
+      printf("Could not open port: %s",connectionStr);
+    break;
+    case UDP_MODE:
+      udp_init(&udp,connectionStr);
+      break;
+  }
+
 %else:
 void app_${proto.name.lower()}_init(mrt_uart_handle_t uart_handle)
 {
@@ -79,7 +108,15 @@ void app_${proto.name.lower()}_init(mrt_uart_handle_t uart_handle)
 void app_${proto.name.lower()}_end()
 {
 %if proto.genUtility:
-  uart_close(fd);
+  switch(ifaceMode)
+  {
+    case UART_MODE:
+      uart_close(fd);
+      break;
+    case UDP_MODE:
+      udp_close(&udp);
+      break;
+  }
 %endif
 }
 
