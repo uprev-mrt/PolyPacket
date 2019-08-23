@@ -35,4 +35,4 @@ add_executable(
 
 target_link_libraries(${proto.fileName}_lib mrtPolyPacket mrtLinux)
 
-target_link_libraries(${proto.utilName} ${proto.fileName}_lib )
+target_link_libraries(${proto.utilName} ${proto.fileName}_lib readline pthread)

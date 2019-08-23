@@ -11,62 +11,74 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <pthread.h>
+#include <readline/readline.h>
+
+
 #include "app_${proto.name.lower()}.h"
 
-void sig_exit();
-void catch_sigterm();
-void run_${proto.prefix}_args(int argc, char* argv[],int idx);
-void printUsage(const char* name);
+void quit();
+void input_handler(char* input);
+void print_usage(const char* messageType);
 
 
 
-
+void processThread(void *vargp)
+{
+    while(1)
+    {
+        app_${proto.name.lower()}_process();
+        sleep(0.001);
+    }
+}
 
 
 int main(int argc, char* argv[])
 {
   int opt;
-    int baud = 9600;
-    char* portName = "/dev/ttyUSB0";
+  char* input;
+  pthread_t thread_id;
 
-    void catch_sigterm(); /* so we can exit gracefulyl with ctrl+c  */
+  int baud = 9600;
+  char* portName = "/dev/ttyUSB0";
 
-    /* Look for options. */
-      while ((opt = getopt(argc, argv, "mb:p:")) != -1)
-      {
-          switch (opt)
-          {
-              case 'm':
+
+  /* Look for options. */
+    while ((opt = getopt(argc, argv, "mb:p:")) != -1)
+    {
+        switch (opt)
+        {
+            case 'm':
+              break;
+            case 'p':
+              portName = optarg;
+              break;
+            case 'b':
+              baud = atoi(optarg);
+              break;
+            default:
+            {
+                print_usage(NULL);
                 break;
-              case 'p':
-                portName = optarg;
-                break;
-              case 'b':
-                baud = atoi(optarg);
-                break;
-              default:
-              {
-                  printUsage(argv[0]);
-                  break;
-              }
-          }
-      }
+            }
+        }
+    }
 
-    /* Initialize app/service */
-    app_${proto.name.lower()}_init("/dev/ttyUSB0", 9600);
+  /* Initialize app/service */
+  app_${proto.name.lower()}_init("/dev/ttyUSB0", 9600);
 
-    /* Parse non-flag options */
-    if (optind < argc)
-      run_${proto.prefix}_args(argc, argv,optind);
 
+  pthread_create(&thread_id, NULL, processThread, NULL);
 
   while(1)
   {
-    app_${proto.name.lower()}_process();
-    sleep(0.001);
+      input = readline(">>");
+      add_history(input);
+      input_handler(input);
+      free(input);
   }
 
-  return 0;
+  quit();
 }
 
 
@@ -75,40 +87,41 @@ int main(int argc, char* argv[])
     Arguments to send messages directly
 *******************************************************************************/
 
-void run_${proto.prefix}_args(int argc, char* argv[], int idx)
+void input_handler(char* input)
 {
-  char strArgs[128]={0};
-  int paramCount = argc - (idx +1);
+
+  if(*input!=0)
+  {
+      add_history(input);
+  }
+
+  if(input[0] == '{')
+  {
+      //TODO send json
+      return;
+  }
+
+  char* messageType = strtok(input," ");
+  char* messageFields = strtok(NULL,0);
+  int fieldCount =0;
+  bool success = false;
 
   /* all fields */
   %for field in proto.fields:
   ${field.getFieldDeclaration()}; //${field.desc}
   %endfor
 
-  if(argc < idx)
-    return;
 
-  if(argc > 2)
-  {
-    //concat args so we can sscanf easily
-    for (int i = idx+1; i < argc; ++i)
-    {
-      strcat(strArgs, argv[i]);
-      strcat(strArgs, " ");
-    }
-  }
-
-  if(!strcasecmp(argv[1], "ping"))
+  if(!strcasecmp(messageType, "ping"))
   {
     ${proto.prefix}_sendPing(0);
   }
 %for packet in proto.packets:
 %if not packet.standard:
-  else if((!strcasecmp(argv[idx], "${packet.name}")) && (paramCount == ${packet.globalName}->mFieldCount))       //${packet.desc}
+  else if(!strcasecmp(messageType, "${packet.name}"))       //${packet.desc}
   {
-    printf("%s\n",strArgs );
 %if len(packet.fields) >0:
-    sscanf(strArgs, "\
+    fieldCount = sscanf(messageFields, "\
 %for field in packet.fields:
 ${field.getFormat()} \
 %endfor
@@ -122,60 +135,51 @@ ${field.getFormat()} \
 %endfor
 );
 %endif
-    ${proto.prefix}_send${packet.camel()}(0\
+    if(fieldCount == ${packet.globalName}->mFieldCount)
+    {
+      ${proto.prefix}_send${packet.camel()}(0\
   %for idx,field in enumerate(packet.fields):
 , field_${field.name} \
   %endfor
 );
+      success = true;
+    }
   }
 %endif
 %endfor
-  else
+
+  if(!success)
   {
-    printUsage(argv[0]);
+    print_usage(messageType);
   }
 }
 
-void printUsage(const char* name)
+void print_usage(const char* messageType)
 {
-  printf("Usage: %s [OPTIONS] [PacketType] [Parameterss]\n"
-         "Available Packet Types:\n",name );
 
 %for packet in proto.packets:
 %if not packet.standard:
 
-  printf("\n/*****************************************************************************\n"
-         "    ${packet.name}  - ${packet.desc}\n"
-         "*******************************************************************************/\n"
-         "${packet.name}  \
+  if((messageType == NULL) || (!strcasecmp(messageType, "${packet.name}")))     //${packet.desc}
+  {
+    printf("${packet.name}  \
+    %for field in packet.fields:
+    <${field.name}> \
+    %endfor
+    \n"
   %for field in packet.fields:
-  <${field.name}> \
+           "\t${field.name} [${field.cType}] - ${field.desc} \n"
   %endfor
-  \n"
-%for field in packet.fields:
-         "\t${field.name} [${field.cType}] - ${field.desc} \n"
+           );
+  }
+  %endif
 %endfor
-         );
-%endif
-%endfor
-  exit(1);
 }
 
 
-void sig_exit()
+void quit()
 {
   printf("closing!\n");
   app_${proto.name.lower()}_end();
   exit(0);
-}
-
-void catch_sigterm()
-{
-    static struct sigaction _sigact;
-
-    memset(&_sigact, 0, sizeof(_sigact));
-    _sigact.sa_sigaction = sig_exit;
-    _sigact.sa_flags = SA_SIGINFO;
-
-    sigaction(SIGINT, &_sigact, NULL);
 }
