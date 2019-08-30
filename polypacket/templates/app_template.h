@@ -15,7 +15,11 @@
   *@brief Initialize the packet service
   */
 %if proto.genUtility:
-void app_${proto.name.lower()}_init(const char* port, int baud);
+
+#define UART_MODE 0
+#define UDP_MODE 1
+
+void app_${proto.name.lower()}_init(const char* connectionStr, int mode);
 %else:
 void app_${proto.name.lower()}_init(mrt_uart_handle_t uart_handle);
 %endif
