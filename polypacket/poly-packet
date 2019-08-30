@@ -361,12 +361,6 @@ class packetDesc:
 
 
 
-
-
-
-
-
-
 class protocolDesc:
     def __init__(self, name):
         self.name = name
@@ -519,7 +513,7 @@ def parseXML(xmlfile):
 
             #get id of field and make a copy
             idx = protocol.fieldIdx[pfname]
-            fieldCopy = copy.deepcopy(protocol.fields[idx])
+            fieldCopy = copy.copy(protocol.fields[idx])
 
             if('req' in pfield.attrib):
                 strReq = pfield.attrib['req']
@@ -558,7 +552,7 @@ def parseXML(xmlfile):
 
             #get id of field and make a copy
             idx = protocol.fieldIdx[pfname]
-            fieldCopy = copy.deepcopy(protocol.fields[idx])
+            fieldCopy = copy.copy(protocol.fields[idx])
 
 
             if('desc' in pfield.attrib):
@@ -615,6 +609,7 @@ def genUtility(protocol, xmlFile, path):
     if not os.path.isdir(path):
         os.makedirs(path)
         initRepo(path)
+        addSubModule(path, "git@bitbucket.org:uprev/utility-cobs.git" ,"Mrt/Modules/Utilities/COBS")
         addSubModule(path, "git@bitbucket.org:uprev/utility-polypacket.git" ,"Mrt/Modules/Utilities/PolyPacket")
         addSubModule(path, "git@bitbucket.org:uprev/utility-json.git" ,"Mrt/Modules/Utilities/JSON")
         addSubModule(path, "git@bitbucket.org:uprev/platform-common.git" ,"Mrt/Modules/Platforms/Common")
@@ -635,6 +630,7 @@ def genUtility(protocol, xmlFile, path):
     buildTemplate(protocol, 'templates/app_template.c', srcPath+"app_" + protocol.name.lower()+".c")
     buildTemplate(protocol, 'templates/util_main_template.c', srcPath+"main.c")
     buildTemplate(protocol, 'templates/doc_template.md', docPath + protocol.name+"_ICD.md")
+    buildTemplate(protocol, 'templates/doc_template.html', docPath + protocol.name+"_ICD.html")
     protocol.genUtility = False #set this back in case someone does this out of order
 
 # Initialize the argument parser
