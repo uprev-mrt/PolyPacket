@@ -6,11 +6,12 @@ A python script is used to parse the XML file and generate code as well as docum
 
 ## Protocol Generation
 
-Protocols are generated using XML. The messaging structure is made up 3 entity types:
+Protocols are generated using XML. The messaging structure is made up 4 entity types:
 
 * Field
 * Packet
 * Val
+* Struct
 
 ## Fields
  A field is a data object within a message
@@ -60,6 +61,52 @@ Val entities are used for defining options in **enum** and **flags** fields.
 ```
 
 In this example an enum is used to set up some predefined options for the **cmd** field. enums are created with sequential values starting at 0. a **flags** field is defined in the same way, but instead of sequential numbers, it shifts bits to the left, to create a group of individually set-able flags.
+
+## Struct
+Structs are essentially the same thing as packets in that they are a collection of fields. The only real difference is the name, and that the code generation tool will create classes for structs.
+
+```xml
+  <Packets>
+
+    <Packet name="getData" desc="Get values of remote node" response="data"/>
+
+    <Packet name="data" desc="Set values of remote node">
+      <Field name="light"/>
+    </Packet>
+
+  </Packets>
+  <Structs>
+    <Struct name="node" desc="Struct for local node properties">
+      <Field name="light"/>
+    </Struct>
+  </Structs>
+```
+
+
+The idea being that a Struct will hold data locally, and can be easily updated from a message. Any packet can be copied to another packet using the packet copy funtion. this function can be used with any 2 packets/structs but will only copy the fields that have in common:
+
+```c
+
+sp_struct_t thisNode; //must be initialized with sp_struct_build(&thisNode, SP_STRUCT_NODE);
+
+HandlerStatus_e sp_Data_handler(sp_packet_t* sp_data)
+{
+
+  sp_packet_copy(&thisNode, sf_data); //update thisNode from incoming data packet
+
+  return PACKET_HANDLED;
+}
+
+HandlerStatus_e sp_GetData_handler(sp_packet_t* sp_getData, sp_packet_t* sp_data)
+{
+
+  sp_packet_copy( sp_data, &thisNode);  //update data packet with fields from thisNode
+
+  return PACKET_HANDLED;
+}
+
+```
+>sp is just the prefix for the sample protocol
 
 ## Example:
 
@@ -146,12 +193,20 @@ For devices where multiple hardware ports are being used by the same protocol, y
 
 ### Register Tx functions
 
-For each interface we can register a send function this allows us to automate things like acknowledgements
+For each interface we need to register a send function. This allows us the service to handle the actual sending so we can automate things like acknowledgements and retries. There are two types of send callbacks that can be registered:
 
 ```c
-sp_service_register_tx(0, &platform_uart_send ); // register sending function
+typedef HandlerStatus_e (*poly_tx_byte_callback)(uint8_t* data , int len);
+typedef HandlerStatus_e (*poly_tx_packet_callback)(poly_packet_t* packet );
 ```
-once we have registered a callback for an interface, we can send messages to it
+
+The tx_byte callback will pass the packet as an array of COBS encoded bytes which can be sent directly over a serial connection. The tx_packet will pass a reference to the packet itself which can be converted to JSON, or manipulated before sending.
+
+```c
+sp_service_register_tx_bytes(0, &uart_send ); // register sending function for raw bytes
+sp_service_register_tx_packet(0, &json_send ); // register sending function for entire packet
+```
+once we have registered a callback for an interface, we can send messages to it using the quick send functions generated for the service.
 ```c
 sp_sendGetData();
 ```
@@ -160,10 +215,31 @@ sp_sendGetData();
 
 The underlying service is responsible for packing and parsing the data. So wherever you read bytes off of the hardware interface, just feed them to the service.
 
+#### Encoded Bytes
 ```c
 void uart_rx_handler(uint8_t* data, int len)
 {
   sp_service_feed(0,datam len);
+}
+```
+
+If you are working with JSON you have two options. you can feed the json message to the service for normal handling or call the json handler to bypass the normal service queue. This option make it easy to use the service in synchronous tasks such as responding to an http request
+
+#### Async JSON
+```c
+void app_json_async_handler(char* strJson, int len)
+{
+  sp_service_feed_json(0,strJson, len);
+}
+```
+
+#### Sync JSON
+```c
+
+void app_json_sync_handler(const char* strRequest, int len, char* strResp)
+{
+  HandlerStatus_e status;
+  status = sp_handle_json(strRequest, len, strResp);
 }
 ```
 
