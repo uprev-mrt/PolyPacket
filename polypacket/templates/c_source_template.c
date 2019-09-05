@@ -216,12 +216,12 @@ void ${proto.prefix}_service_process()
 }
 
 
-void ${proto.prefix}_service_register_bytes_tx( int iface, poly_tx_callback txBytesCallBack)
+void ${proto.prefix}_service_register_bytes_tx( int iface, poly_tx_bytes_callback txBytesCallBack)
 {
   poly_service_register_bytes_tx_callback(&${proto.service()}, iface,txBytesCallBack);
 }
 
-void ${proto.prefix}_service_register_packet_tx( int iface, poly_tx_callback txPacketCallBack)
+void ${proto.prefix}_service_register_packet_tx( int iface, poly_tx_packet_callback txPacketCallBack)
 {
   poly_service_register_packet_tx_callback(&${proto.service()}, iface,txPacketCallBack);
 }

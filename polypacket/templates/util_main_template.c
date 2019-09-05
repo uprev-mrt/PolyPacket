@@ -29,6 +29,7 @@
 void quit();
 void input_handler(char* input);
 void print_usage(const char* messageType);
+void print_util_usage();
 
 char **packet_name_completion(const char *, int, int);
 char *packet_name_generator(const char *, int);
@@ -59,29 +60,36 @@ int main(int argc, char* argv[])
   pthread_t thread_id;
 
   int interface_mode = UART_MODE;
-  char* connString;
+  char* connString = NULL;
   printf(KGRN);
 
 
   /* Look for options. */
-    while ((opt = getopt(argc, argv, "s:u:")) != -1)
-    {
-        switch (opt)
-        {
-            case 's':
-              connString = optarg;
+  while ((opt = getopt(argc, argv, "s:u:")) != -1)
+  {
+      switch (opt)
+      {
+          case 's':
+            connString = optarg;
+            break;
+          case 'u':
+            connString = optarg;
+            interface_mode = UDP_MODE;
+            break;
+          default:
+          {
+              print_util_usage(NULL);
+              quit();
               break;
-            case 'u':
-              connString = optarg;
-              interface_mode = UDP_MODE;
-              break;
-            default:
-            {
-                print_usage(NULL);
-                break;
-            }
-        }
-    }
+          }
+      }
+  }
+
+  if(connString == NULL)
+  {
+    print_util_usage();
+    quit();
+  }
 
   /* Initialize app/service */
   app_${proto.name.lower()}_init(connString, interface_mode);
@@ -179,6 +187,20 @@ ${field.getFormat()} \
   {
     print_usage(messageType);
   }
+}
+
+void print_util_usage()
+{
+  printf(KYEL);
+  printf("./${proto.utilName} <Options>\n"
+         "-u UDP connection string\n"
+         "      localPort to open port and listen\n"
+         "      localPort:remoteAddress:remotePort to open local port and connect to remote target\n"
+         "      example 8010:localhost:8020\n\n"
+         "-s Serial connection string\n"
+         "      device:baud\n"
+         "      example: /dev/ttyS1:9600\n");
+
 }
 
 void print_usage(const char* messageType)
