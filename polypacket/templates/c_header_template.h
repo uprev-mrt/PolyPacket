@@ -123,9 +123,16 @@ void ${proto.prefix}_service_process();
 /**
   *@brief registers a callback to let the service know how to send bytes for a given interface
   *@param iface index of interface to register with
-  *@param txCallBack a function pointer for the callback
+  *@param txBytesCallBack a function pointer for the callback
   */
-void ${proto.prefix}_service_register_tx( int iface, poly_tx_callback txCallBack);
+void ${proto.prefix}_service_register_bytes_tx( int iface, poly_tx_bytes_callback txBytesCallBack);
+
+/**
+  *@brief registers a callback to let the service know how to send entire packets
+  *@param iface index of interface to register with
+  *@param txPacketCallBack a function pointer for the callback
+  */
+void ${proto.prefix}_service_register_packet_tx( int iface, poly_tx_packet_callback txPacketCallBack);
 
 /**
   *@brief 'Feeds' bytes to service at given interface for processing
@@ -174,7 +181,7 @@ void ${proto.prefix}_auto_ack(bool enable);
   *@param desc ptr to packet descriptor to model packet from
   */
 void ${proto.prefix}_packet_build(${proto.prefix}_packet_t* packet, poly_packet_desc_t* desc);
-
+#define ${proto.prefix}_struct_build(packet,desc) ${proto.prefix}_packet_build(packet,desc)
 
 
 
