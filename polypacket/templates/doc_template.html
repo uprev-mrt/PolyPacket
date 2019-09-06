@@ -198,6 +198,11 @@
   %for field in packet.fields:
   <tr>
     <td width="">${field.name}</td>
+    <td width="">  ${field.cType}\
+      %if field.isArray:
+        [${field.arrayLen}]\
+      %endif
+    </td>
     <td>${field.desc}\
       %if field.isEnum:
       <br/>

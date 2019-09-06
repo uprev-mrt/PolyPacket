@@ -13,6 +13,7 @@
 
 #include <pthread.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 
 #include "app_${proto.name.lower()}.h"
 
@@ -101,7 +102,7 @@ int main(int argc, char* argv[])
   while(1)
   {
       input = readline("\033[1;32m>>");
-      if(input != NULL)
+      if((input != NULL) && (input[0] != 0))
       {
         add_history(input);
         input_handler(input);
@@ -120,6 +121,7 @@ int main(int argc, char* argv[])
 
 void input_handler(char* input)
 {
+
 
   if(input[0] == '{')
   {
