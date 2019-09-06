@@ -4,6 +4,9 @@
   prefix: "sp"
   desc: "This is a sample protocol made up to demonstrate features of the PolyPacket code generation tool. The idea is to have a tool that can automatically create parseable/serializable messaging for embedded systems"
   fields:[
+/*************************************************************************************************
+                      FIELDS
+**************************************************************************************************/
 
       /*  Common */
       {name:"cmd" , type: "enum", format: "hex", desc: "command byte for controlling node" ,
@@ -17,6 +20,9 @@
       {name: "sensorName" , type: "string[32]", desc: "Name of sensor"},
       ],
   packets: [
+/*************************************************************************************************
+                      PACKETS
+**************************************************************************************************/
       {name:"SendCmd", desc:"Message to send command to node",
           fields: [ {name:"cmd"}]},
 
@@ -27,6 +33,9 @@
                  {name: "sensorName", desc: "Name of Sensor responding to message"}]},
     ],
   structs: [
+  /*************************************************************************************************
+                        Structs
+  **************************************************************************************************/
       {name: "node",desc:"Struct for modeling node",
       fields:[ {name: "sensorA"},
                {name: "sensorB"},
