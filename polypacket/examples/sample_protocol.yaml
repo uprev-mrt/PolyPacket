@@ -1,0 +1,32 @@
+---
+name: sample
+prefix: sp
+desc: This is a sample protocol made up to demonstrate features of the PolyPacket
+  code generation tool. The idea is to have a tool that can automatically create parseable/serializable
+  messaging for embedded systems
+fields:
+- name: cmd , type: enum , format: hex , desc: command byte for controlling node
+  vals:
+  - name: led_ON
+    desc: turns on led
+  - name: led_OFF
+    desc: turns off led
+  - name: reset
+    desc: resets device
+- name: sensorA
+  type: int16
+  desc: Value of Sensor A
+- name: sensorB
+  type: int
+  desc: Value of Sensor B
+- name: sensorName
+  type: string[32]
+  desc: Name of sensor
+packets:
+- name: SendCmd
+  desc: Message to send command to node
+  fields:
+  - name: cmd
+- name: GetData
+  desc: Message tp get data from node
+  response: Data
