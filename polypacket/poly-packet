@@ -119,16 +119,9 @@ def main():
     fileCrc = crc(inputFile)
 
     print( "Parsing " + inputFile)
-    extension = os.path.splitext(inputFile)[1]
-    print(extension)
 
-    if(extension  == ".hjson"):
-        protocol = parseJSON(inputFile)
-
-    elif(extension == ".xml"):
-        protocol = parseXML(inputFile)
-
-
+    protocol = buildProtocol(inputFile)
+    
     protocol.hash = fileCrc
     print( "Protocol "+ protocol.name+ " generated!")
     protocol.genTime = now.strftime("%m/%d/%y")

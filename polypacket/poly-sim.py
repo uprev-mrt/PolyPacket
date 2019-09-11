@@ -11,11 +11,24 @@ from prompt_toolkit.widgets import SearchToolbar, TextArea
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.completion import FuzzyWordCompleter
+from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+
+import sys
+import os
+
+# from polypacket.protocol import *
+# from polypacket.polyservice import *
+
+
 
 help_text = """
 Type any expression (e.g. "4 + 4") followed by enter to execute.
 Press Control-C to exit.
 """
+
+command_completer = FuzzyWordCompleter(['connect','send'])
+
+
 
 animal_completer = FuzzyWordCompleter([
     'alligator', 'ant', 'ape', 'bat', 'bear', 'beaver', 'bee', 'bison',
@@ -27,21 +40,36 @@ animal_completer = FuzzyWordCompleter([
 color_completer = FuzzyWordCompleter(['red', 'blue', 'green', 'orange', 'purple', 'yellow', 'cyan',
           'magenta', 'pink'])
 
+#
+# def load_protocol(protocolFile):
+#     protocol = buildProtocol(protocolFile)
+
+    #
+
+
 def main():
+
     # The layout.
-    search_field = SearchToolbar()  # For reverse search.
+    #search_field = SearchToolbar()  # For reverse search.
 
     output_field = TextArea(style='class:output-field', text=help_text)
+
     input_field = TextArea(
-        height=4, prompt='>>> ', style='class:input-field', multiline=True,
-        wrap_lines=False, search_field=search_field,completer=animal_completer,
+        height=14, prompt='>>> ', style='class:input-field', multiline=False,
+        wrap_lines=False,completer=animal_completer,
                   complete_while_typing=False)
+
+    status_field = TextArea(
+        height=1, style='class:status', multiline=False,wrap_lines=False)
+
+    autocomp_area = TextArea(wrap_lines=False, read_only=True)
 
     container = HSplit([
         output_field,
         Window(height=1, char='-', style='class:line'),
         input_field,
-        search_field,
+        autocomp_area,
+        status_field,
     ])
 
     # Attach accept handler to the input field. We do this by assigning the
@@ -75,6 +103,7 @@ def main():
         ('output-field', 'bg:#000000 #ffffff'),
         ('input-field', 'bg:#000000 #ffffff'),
         ('line',        '#004400'),
+        ('status', 'bg:#004400 #ffffff')
     ])
 
     # Run application.

@@ -574,7 +574,7 @@ def parseJSON(jsonFile):
 
     if "prefix" in objProtocol:
         protocol.prefix = objProtocol['prefix']
-        
+
     if "desc" in objProtocol:
         protocol.desc = objProtocol['desc']
 
@@ -705,3 +705,14 @@ def parseJSON(jsonFile):
 
     # return news items list
     return protocol
+
+def buildProtocol(file):
+    extension = os.path.splitext(file)[1]
+
+    if(extension  == ".hjson"):
+        return parseJSON(inputFile)
+
+    elif(extension == ".xml"):
+        return parseXML(inputFile)
+
+    return 0
