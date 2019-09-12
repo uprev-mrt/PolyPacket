@@ -7,6 +7,10 @@
 /*************************************************************************************************
                       FIELDS
 **************************************************************************************************/
+      /* Sensor Data */
+      {name: "sensorA" , type: "int16", desc: "Value of Sensor A"},
+      {name: "sensorB" , type: "int", desc: "Value of Sensor B"},
+      {name: "sensorName" , type: "string[32]", desc: "Name of sensor"},
 
       /*  Common */
       {name:"cmd" , type: "enum", format: "hex", desc: "command byte for controlling node" ,
@@ -14,10 +18,6 @@
                     {name: "led_OFF", desc:"turns off led"},
                     {name: "reset", desc:"resets device"} ] },
 
-      /* Sensor Data */
-      {name: "sensorA" , type: "int16", desc: "Value of Sensor A"},
-      {name: "sensorB" , type: "int", desc: "Value of Sensor B"},
-      {name: "sensorName" , type: "string[32]", desc: "Name of sensor"},
       ],
   packets: [
 /*************************************************************************************************

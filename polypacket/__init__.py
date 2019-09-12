@@ -1,2 +1,2 @@
 from polypacket.protocol import *
-from polypacket.PolyService import *
+#from polypacket.PolyService import *
