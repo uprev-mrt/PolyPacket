@@ -709,7 +709,7 @@ def parseJSON(jsonFile):
 
 def parseYAML(yamlFile):
     data = open(yamlFile)
-    objProtocol = yaml.load(data)
+    objProtocol = yaml.load(data , Loader=yaml.FullLoader)
 
     protocol = protocolDesc(objProtocol['name'])
 

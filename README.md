@@ -1,12 +1,12 @@
 # PolyPacket
 
-Poly Packet is backend and code generation tool for creating messaging protocols/Services. Protocols are described in an XML document which can be easily shared with all components of a system.
+Poly Packet is backend and code generation tool for creating messaging protocols/Services. Protocols are described in an YAML document which can be easily shared with all components of a system.
 
-A python script is used to parse the XML file and generate code as well as documentation. The code generation tool can create the back end service, app layer, and even an entire linux utility app
+A python script is used to parse the YAML file and generate code as well as documentation. The code generation tool can create the back end service, app layer, and even an entire linux utility app
 
 ## Protocol Generation
 
-Protocols are generated using XML. The messaging structure is made up 4 entity types:
+Protocols are generated using YAML. The messaging structure is made up 4 entity types:
 
 * Field
 * Packet
@@ -14,15 +14,19 @@ Protocols are generated using XML. The messaging structure is made up 4 entity t
 * Struct
 
 ## Fields
- A field is a data object within a message
+ A field is a data object within a message.
+ Fields. These can be defines either as nested yaml, or an inline dictionary
 
+example fields:
 
-example field:
-
-```xml
-<Field name="src" type="uint16_t" format="hex" desc="Source address of message" />
+```yaml
+fields:
+  - sensorA: { type: int16 ,desc: Value of Sensor A}
+  - sensorB:
+      type: int
+      format: hex
+      desc: Value of Sensor B
 ```
-> **name**: The name of the field <br/>
 > **type**: The data type for the field  <br/>
 > **format**: (optional)  This sets the display format used for the toString and toJsonString methods [ hex , dec , assci ]  <br/>
 > **desc**: (optional)  The description of the field. This is used to create the documentation  <br/>
@@ -32,11 +36,14 @@ A Packet describes an entire message and is made up of fields
 
 example Packet:
 
-```xml
-<Packet name="GetData" desc="Message to get data from node" response="RespData">
-  <Field name="src" req="true"/>
-  <Field name="dst" req="true" desc="address of node to retrieve data from"/>
-</Packet>
+```yaml
+packets:
+  - Data:
+      desc: contains data from a sensor
+      fields:
+        - sensorA
+        - sensorB
+        - sensorName
 ```
 
 > **name**: The name of the packet <br/>
@@ -52,12 +59,16 @@ within the packet we reference Fields which have already been declared in the Fi
 ## Val
 Val entities are used for defining options in **enum** and **flags** fields.
 
-```xml
-<Field name="cmd" type="enum" format="hex" desc="Command for device">
-  <Val name="led_ON" desc="turns on led" />
-  <Val name="led_OFF" desc="turns off led" />
-  <Val name="reset" desc="resets the device" />
-</Field>
+```yaml
+fields:
+  - cmd:
+      type: enum
+      format: hex
+      desc: command byte for controlling node
+      vals:
+        - led_ON: { desc: turns on led}
+        - led_OFF: { desc: turns off led}
+        - reset: { desc: resets device }
 ```
 
 In this example an enum is used to set up some predefined options for the **cmd** field. enums are created with sequential values starting at 0. a **flags** field is defined in the same way, but instead of sequential numbers, it shifts bits to the left, to create a group of individually set-able flags.
@@ -65,21 +76,15 @@ In this example an enum is used to set up some predefined options for the **cmd*
 ## Struct
 Structs are essentially the same thing as packets in that they are a collection of fields. The only real difference is the name, and that the code generation tool will create classes for structs.
 
-```xml
-  <Packets>
+```yaml
+structs:
 
-    <Packet name="getData" desc="Get values of remote node" response="data"/>
-
-    <Packet name="data" desc="Set values of remote node">
-      <Field name="light"/>
-    </Packet>
-
-  </Packets>
-  <Structs>
-    <Struct name="node" desc="Struct for local node properties">
-      <Field name="light"/>
-    </Struct>
-  </Structs>
+  - Node:
+      desc: struct for modeling node
+      field:
+        - sensorA
+        - sensorB
+        - sensorName
 ```
 
 
@@ -110,51 +115,77 @@ HandlerStatus_e sp_GetData_handler(sp_packet_t* sp_getData, sp_packet_t* sp_data
 
 ## Example:
 
-The following example show the XML for a simple message protocol.
+The following example show the YAML for a simple message protocol.
 
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<Protocol name="Sample" prefix="sp"
-  desc="This is a sample protocol made up to demonstrate features of the PolyPacket code generation tool. The idea
-  is to have a tool that can automatically create parseable/serializable messaging for embedded systems.">
-  <!--First we declare all Field descriptors-->
-  <Fields>
+```yaml
+---
+name: sample
+prefix: sp
+desc: This is a sample protocol made up to demonstrate features of the PolyPacket
+  code generation tool. The idea is to have a tool that can automatically create parseable/serializable
+  messaging for embedded systems
 
-    <!--Common -->
-    <Field name="cmd" type="enum" format="hex" desc="Command for device">
-      <Val name="led_ON" desc="turns on led" />
-      <Val name="led_OFF" desc="turns off led" />
-      <Val name="reset" desc="resets the device" />
-    </Field>
+###########################################################################################################
+#                                   FIELDS                                                                #
+###########################################################################################################
 
-    <!-- SensorData -->
-    <Field name="sensorA" type="int16" format="dec" desc="Value of Sensor A"/>
-    <Field name="sensorB" type="int" format="dec" desc="Value of Sensor B" />
-    <Field name="sensorName" type="string[32]" format="ascii" desc="Name of sensor"/>
+fields:
 
-  </Fields>
-  <!--Declare all Packet Types-->
-  <Packets>
-    <Packet name="SendCmd" desc="Message to set command in node" >
-      <Field name="cmd" req="true"/>
-    </Packet>
+  - sensorA: { type: int16 ,desc: Value of Sensor A}
 
-    <Packet name="GetData" desc="Message to get data from node" response="Data">
-    </Packet>
+  - sensorB:
+      type: int
+      desc: Value of Sensor B
 
-    <Packet name="Data" desc="Message containing data from sensor" >
-      <Field name="sensorA"/>
-      <Field name="sensorB"/>
-      <!-- Adding a description here will overwrite the description in documentation for this packet type -->
-      <Field name="sensorName" desc="Name of sensor responding to message "/>
-    </Packet>
+  - sensorName:
+      type: string[32]
+      desc: Name of sensor
 
-  </Packets>
-</Protocol>
+  - cmd:
+      type: enum
+      format: hex
+      desc: command byte for controlling node
+      vals:
+        - led_ON: { desc: turns on led}
+        - led_OFF: { desc: turns off led}
+        - reset: { desc: resets device }
+
+###########################################################################################################
+#                                   Packets                                                               #
+###########################################################################################################
+packets:
+  - SendCmd:
+      desc: Message to send command to node
+      fields:
+        - cmd
+
+  - GetData:
+      desc: Message tp get data from node
+      response: Data
+
+  - Data:
+      desc: contains data from a sensor
+      fields:
+        - sensorA
+        - sensorB
+        - sensorName
+###########################################################################################################
+#                                   Structs                                                                #
+###########################################################################################################
+
+structs:
+
+  - Node:
+      desc: struct for modeling node
+      field:
+        - sensorA
+        - sensorB
+        - sensorName
+
 
 ```
-The XML sets up 3 Fields:
+The YAML sets up 3 Fields:
 
 **cmd** - Command for device </br>
 **sensorA** - Value of Sensor A <br/>
@@ -165,19 +196,19 @@ It then lists the packets, and which fields are in each packet. fields are consi
 
 ## Using Poly Packet
 
-To use poly packet, write your xml to define the fields and packets in your protocol. Then use poly-packet to generate the source code.
+To use poly packet, write your YAML to define the fields and packets in your protocol. Then use poly-packet to generate the source code.
 
 
 >the mako module is required (pip install mako)
 ```bash
-poly-packet -i sample_protocol.xml -o . -a
+poly-packet -i sample_protocol.yml -o . -a
 ```
-* -i is for input file, this will be the xml file used
+* -i is for input file, this will be the YAML file used
 * -o is the output directory, this is where the code and documentation will be generated
 * -a tells the tool to create an application layer for you
 * -u specifies a path to create a standalone serial utility for the service
 
->by default all functions will start with the prefix 'pp'. but the 'prefix' attribute can be used in the xml to set a different prefix. this allows the use of multiple services/protocols in a single project without conflict
+>by default all functions will start with the prefix 'pp'. but the 'prefix' attribute can be used in the YAML to set a different prefix. this allows the use of multiple services/protocols in a single project without conflict
 
 
 This example shows how to use the code to create a service. The service is initialized with 1 interface:
@@ -291,7 +322,7 @@ sp_clean(&msg);
 ---
 
 ### Receive Handlers
-The generated service creates a handler for each packet type, they are created with weak attributes, so they can be overridden by just declaring them again in our code. If you specify a response for a packet in the xml, the generated handler will have a pointer to responding packet. As long as the handler returns 'PACKET_HANDLED', the service will send the reply. If no reponse is specified the service will send an 'Ack' packet
+The generated service creates a handler for each packet type, they are created with weak attributes, so they can be overridden by just declaring them again in our code. If you specify a response for a packet in the YAML, the generated handler will have a pointer to responding packet. As long as the handler returns 'PACKET_HANDLED', the service will send the reply. If no reponse is specified the service will send an 'Ack' packet
 
 The following is our handler for 'SetData' type packets
 
