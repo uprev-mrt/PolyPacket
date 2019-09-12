@@ -1,0 +1,60 @@
+---
+name: sample
+prefix: sp
+desc: This is a sample protocol made up to demonstrate features of the PolyPacket
+  code generation tool. The idea is to have a tool that can automatically create parseable/serializable
+  messaging for embedded systems
+
+###########################################################################################################
+#                                   FIELDS                                                                #
+###########################################################################################################
+
+fields:
+
+  - sensorA: { type: int16 ,desc: Value of Sensor A}
+  - sensorB: {type: int, desc: Value of Sensor B}
+
+  - sensorName:
+      type: string[32]
+      desc: Name of sensor
+
+  - cmd:
+      type: enum
+      format: hex
+      desc: command byte for controlling node
+      vals:
+        - led_ON: { desc: turns on led}
+        - led_OFF: { desc: turns off led}
+        - reset: { desc: resets device }
+
+###########################################################################################################
+#                                   Packets                                                               #
+###########################################################################################################
+packets:
+  - SendCmd:
+      desc: Message to send command to node
+      fields:
+        - cmd
+
+  - GetData:
+      desc: Message tp get data from node
+      response: Data
+
+  - Data:
+      desc: contains data from a sensor
+      fields:
+        - sensorA
+        - sensorB
+        - sensorName
+###########################################################################################################
+#                                   Structs                                                                #
+###########################################################################################################
+
+structs:
+
+  - Node:
+      desc: struct for modeling node
+      field:
+        - sensorA
+        - sensorB
+        - sensorName

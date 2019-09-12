@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol name="Sample" prefix="sp"
+  desc="This is a sample protocol made up to demonstrate features of the PolyPacket code generation tool. The idea
+  is to have a tool that can automatically create parseable/serializable messaging for embedded systems.">
+  <!--First we declare all Field descriptors-->
+  <Fields>
+
+    <!--Common -->
+    <Field name="cmd" type="enum" format="hex" desc="command byte for controlling node" >
+      <Val name="led_ON" desc="turns on led" />
+      <Val name="led_OFF" desc="turns off led" />
+      <Val name="reset" desc="resets the device" />
+    </Field>
+
+    <!-- SensorData -->
+    <Field name="sensorA" type="int16" format="dec" desc="Value of Sensor A"/>
+    <Field name="sensorB" type="int" format="dec" desc="Value of Sensor B" />
+    <Field name="sensorName" type="string[32]" format="ascii" desc="Name of sensor"/>
+
+  </Fields>
+
+  <!--Declare all Packet Types-->
+  <Packets>
+    <Packet name="SendCmd" desc="Message to send command to node" >
+      <Field name="cmd" req="true"/>
+    </Packet>
+
+    <Packet name="GetData" desc="Message to get data from node" response="Data"/>
+
+    <Packet name="Data" desc="Message containing data from sensor" >
+      <Field name="sensorA"/>
+      <Field name="sensorB"/>
+      <!-- Adding a description here will overwrite the description in documentation for this packet type -->
+      <Field name="sensorName" desc="Name of sensor responding to message "/>
+    </Packet>
+
+  </Packets>
+
+  <Structs>
+    <Struct name="node" desc="struct for modeling node">
+      <Field name="sensorA"/>
+      <Field name="sensorB"/>
+      <Field name="sensorName" desc="Name of sensor responding to message "/>
+    </Struct>
+  </Structs>
+  
+</Protocol>
