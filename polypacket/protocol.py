@@ -13,7 +13,6 @@ from mako.template import Template
 import pkgutil
 import polypacket
 import subprocess
-import hjson
 import yaml
 
 
@@ -92,7 +91,7 @@ class fieldDesc:
             self.isEnum = True
             strType = 'uint8_t'
 
-        m = re.search('\[([0-9]*)\]', strType)
+        m = re.search('\*([0-9]*)', strType)
         if(m):
             if(m.group(1) != ''):
                 self.arrayLen = int(m.group(1))
@@ -566,146 +565,6 @@ def parseXML(xmlfile):
     # return news items list
     return protocol
 
-def parseJSON(jsonFile):
-    json = open(jsonFile)
-    obj = hjson.load(json)
-
-    objProtocol = obj['protocol']
-    protocol = protocolDesc(objProtocol['name'])
-
-    if "prefix" in objProtocol:
-        protocol.prefix = objProtocol['prefix']
-
-    if "desc" in objProtocol:
-        protocol.desc = objProtocol['desc']
-
-    addStandardPackets(protocol)
-
-    protocol.xmlName = os.path.basename(jsonFile)
-
-    for field in objProtocol['fields']:
-        name = field['name']
-        strType = field['type'];
-
-        newField = fieldDesc(name, strType)
-        newField.setPrefix(protocol.prefix)
-
-        if('format' in field):
-            format = field['format'].lower()
-            if not format in formatDict:
-                print( "INVALID FORMAT :" + format)
-
-            newField.format = formatDict[format]
-
-        if('desc' in field):
-            newField.desc = field['desc']
-
-        if(name in protocol.fields):
-            print( 'ERROR Duplicate Field Name!: ' + name)
-
-        #get vals if any
-        if "vals" in field:
-            for val in field['vals']:
-                name = val['name']
-                newVal = fieldVal(name)
-
-                if('desc' in val):
-                    newVal.desc = val['desc']
-
-                newField.addVal(newVal)
-
-        protocol.addField(newField)
-
-
-    for packet in objProtocol['packets']:
-        name = packet['name']
-        desc =""
-        newPacket = packetDesc(name)
-        newPacket.setPrefix(protocol.prefix)
-
-        if(name in protocol.packetIdx):
-            print( 'ERROR Duplicate Packet Name!: ' + name)
-
-        if('desc' in packet):
-            desc = packet['desc']
-
-        if('response' in packet):
-            newPacket.requests[packet['response']] = 0
-
-        #get all fields declared for packet
-        if "fields" in packet:
-            for pfield in packet['fields']:
-
-                pfname = pfield['name']
-                strReq =""
-                if not (pfname in protocol.fieldIdx):
-                    print( 'ERROR Field not declared: ' + pfname)
-
-                #get id of field and make a copy
-                idx = protocol.fieldIdx[pfname]
-                fieldCopy = copy.copy(protocol.fields[idx])
-
-                if('req' in pfield):
-                    strReq = pfield['req']
-                    if(strReq.lower() == "true" ):
-                        fieldCopy.isRequired = True
-
-                if('desc' in pfield):
-                    fieldCopy.desc = pfield['desc']
-
-                newPacket.addField(fieldCopy)
-
-        newPacket.desc = desc
-
-        protocol.addPacket(newPacket)
-
-    for struct in objProtocol['structs']:
-        name = struct['name']
-        desc =""
-        newStruct = packetDesc(name)
-
-
-        if(name in protocol.structIdx):
-            print( 'ERROR Duplicate Struct Name!: ' + name)
-
-        if('desc' in packet):
-            desc = packet['desc']
-
-        #get all fields declared for packet
-        if "fields" in struct:
-            for pfield in struct['fields']:
-
-                pfname = pfield['name']
-                strReq =""
-                if not (pfname in protocol.fieldIdx):
-                    print( 'ERROR Field not declared: ' + pfname)
-
-                #get id of field and make a copy
-                idx = protocol.fieldIdx[pfname]
-                fieldCopy = copy.copy(protocol.fields[idx])
-
-
-                if('desc' in pfield):
-                    fieldCopy.desc = pfield['desc']
-
-                newStruct.addField(fieldCopy)
-
-        newStruct.desc = desc
-
-        protocol.addStruct(newStruct)
-
-
-    for packet in protocol.packets:
-        for request in packet.requests:
-            idx = protocol.packetIdx[request]
-            protocol.packets[idx].respondsTo[packet.name] = 0
-
-    for packet in protocol.packets:
-        packet.postProcess()
-
-
-    # return news items list
-    return protocol
 
 def parseYAML(yamlFile):
     data = open(yamlFile)
@@ -726,7 +585,7 @@ def parseYAML(yamlFile):
     for fieldItem in objProtocol['fields']:
         name = list(fieldItem.keys())[0]
         field = list(fieldItem.values())[0]
-        strType = field['type'];
+        strType = field['type'].replace("(","[").replace(")","]");
 
         newField = fieldDesc(name, strType)
         newField.setPrefix(protocol.prefix)
@@ -800,9 +659,7 @@ def parseYAML(yamlFile):
                 fieldCopy = copy.copy(protocol.fields[idx])
 
                 if('req' in pfield):
-                    strReq = pfield['req']
-                    if(strReq.lower() == "true" ):
-                        fieldCopy.isRequired = True
+                    fieldCopy.isRequired = pfield['req']
 
                 if('desc' in pfield):
                     fieldCopy.desc = pfield['desc']
@@ -828,9 +685,15 @@ def parseYAML(yamlFile):
 
         #get all fields declared for packet
         if "fields" in struct:
-            for pfield in struct['fields']:
+            for pfieldItem in struct['fields']:
 
-                pfname = pfield['name']
+                if type(pfieldItem) is dict:
+                    pfname = list(pfieldItem.keys())[0]
+                    pfield = list(pfieldItem.values())[0]
+                else:
+                    pfname = pfieldItem
+                    pfield = {}
+
                 strReq =""
                 if not (pfname in protocol.fieldIdx):
                     print( 'ERROR Field not declared: ' + pfname)
@@ -865,13 +728,14 @@ def parseYAML(yamlFile):
 def buildProtocol(file):
     extension = os.path.splitext(file)[1]
 
-    if(extension  == ".hjson"):
-        return parseJSON(file)
-
-    elif(extension == ".xml"):
+    if(extension == ".xml"):
+        print(" XML files are depreciated. Please convert to YAML for future use")
         return parseXML(file)
 
     elif(extension == ".yml"):
         return parseYAML(file)
+
+    else:
+        print(" Files Type: " + extension+" Not supported. Please use YAML")
 
     return 0

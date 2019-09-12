@@ -121,7 +121,7 @@ def main():
     print( "Parsing " + inputFile)
 
     protocol = buildProtocol(inputFile)
-    
+
     protocol.hash = fileCrc
     print( "Protocol "+ protocol.name+ " generated!")
     protocol.genTime = now.strftime("%m/%d/%y")
@@ -134,8 +134,8 @@ def main():
 
 
     if(docPath != ""):
-        buildTemplate(protocol, 'templates/doc_template.md', docPath + protocol.name+"_ICD.md")
-        buildTemplate(protocol, 'templates/doc_template.html', docPath + protocol.name+"_ICD.html")
+        buildTemplate(protocol, 'templates/doc_template.md', docPath +"/"+ protocol.name+"_ICD.md")
+        buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
         #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
 
     if(jsPath != ""):

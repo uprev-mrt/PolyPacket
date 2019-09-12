@@ -26,8 +26,12 @@ fields:
       type: int
       format: hex
       desc: Value of Sensor B
+
+  - sensorsC_Z:
+      type: int*24
+      desc: Values for remaining 24 sensors
 ```
-> **type**: The data type for the field  <br/>
+> **type**: The data type for the field. * indicates and array. an optional size can be specified wiht \*n <br/>
 > **format**: (optional)  This sets the display format used for the toString and toJsonString methods [ hex , dec , assci ]  <br/>
 > **desc**: (optional)  The description of the field. This is used to create the documentation  <br/>
 
@@ -139,7 +143,7 @@ fields:
       desc: Value of Sensor B
 
   - sensorName:
-      type: string[32]
+      type: string
       desc: Name of sensor
 
   - cmd:
