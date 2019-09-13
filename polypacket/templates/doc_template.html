@@ -18,68 +18,6 @@
 <br/>
 <hr class="thick">
 
-<div id="header" class="packet">
-<h2>Header </h2>
-<hr/>
-
-<p class="desc">All packets contain a standard header</p>
-<br/>
-<b>Structure:</b>
-<table class="fixed" style="width:40%">
-  <tr>
-  <th  >Byte</th>
-        <th >0</th>
-        <th >1</th>
-        <th >2</th>
-        <th >3</th>
-        <th >4</th>
-        <th >5</th>
-        <th >6</th>
-  </tr>
-  <tr>
-    <td>Field</td>
-      <td colspan="1">Id</td>
-      <td colspan="2">Length</td>
-      <td colspan="2">Token</td>
-      <td colspan="2">Checksum</td>
-  </tr>
-  <tr>
-    <td>Type</td>
-    <td colspan="1">uint8_t</td>
-    <td colspan="2">uint16_t</td>
-    <td colspan="2">uint16_t</td>
-    <td colspan="2">uint16_t</td>
-  </tr>
-</table>
-<br/>
-<b>Fields:</b>
-<table class="fields">
-  <tr>
-    <th> Field</th>
-    <th> Description</th>
-  </tr>
-  <tr>
-    <td width="">Id</td>
-    <td>Packet Type identifier</td>
-  </tr>
-  <tr>
-    <td width="">Length</td>
-    <td>Number of bytes in packet (not including header)</td>
-  </tr>
-  <tr>
-    <td width="">Token</td>
-    <td>Psuedo random token generated for message</td>
-  </tr>
-  <tr>
-    <td width="">Checksum</td>
-    <td>16bit checksum used for data validation</td>
-  </tr>
-</table>
-
-<br/>
-<hr class="thick">
-</div>
-
 <h2> Packet Types </h2>
 <hr/>
 
@@ -144,50 +82,6 @@
 <p class="desc">${packet.desc}</p>
 <br/>
 %if len(packet.fields) > 0:
-<b>Structure:</b>
-<table class="fixed" style="width:${packet.tableSize() * 4}%">
-  <tr>
-  <th  >Byte</th>
-  <% count = 0 %>\
-%for field in packet.fields:
-    %if field.size > 4:
-    <th >${count}</th>
-    <th colspan="2">........</th>
-    <th >${(count+field.size) }</th>
-  %else:
-    %for x in range(field.size):
-    <th >${count}</th>
-    <% count += 1 %>\
-    %endfor
-  %endif
-%endfor
-  </tr>
-  <tr>
-    <td>Field</td>
-  %for field in packet.fields:
-      %if field.size > 4:
-      <td colspan="4">${field.name}</td>
-    %else:
-      <td colspan="${field.size}">${field.name}</td>
-    %endif
-  %endfor
-  </tr>
-  <tr>
-    <td>Type</td>
-  %for field in packet.fields:
-      %if field.size > 4:
-      <td colspan="4">\
-    %else:
-      <td colspan="${field.size}">\
-    %endif
-    ${field.cType}\
-    %if field.isArray:
-    [${field.arrayLen}]\
-    %endif
-  </td>
-  %endfor
-  </tr>
-</table>
 <br/>
 <b>Fields:</b>
 <table class="fields">

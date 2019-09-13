@@ -14,10 +14,9 @@ Protocols are generated using YAML. The messaging structure is made up 4 entity 
 * Struct
 
 ## Fields
- A field is a data object within a message.
- Fields. These can be defines either as nested yaml, or an inline dictionary
+ A field is a data object within a packet. These can be expressed either as nested yaml, or an inline dictionary
 
-example fields:
+**Example fields:**
 
 ```yaml
 fields:
@@ -31,9 +30,20 @@ fields:
       type: int*24
       desc: Values for remaining 24 sensors
 ```
-> **type**: The data type for the field. * indicates and array. an optional size can be specified wiht \*n <br/>
+> **type**: The data type for the field. \*n indicates it is an array with a max size of n <br/>
 > **format**: (optional)  This sets the display format used for the toString and toJsonString methods [ hex , dec , assci ]  <br/>
 > **desc**: (optional)  The description of the field. This is used to create the documentation  <br/>
+
+<br/>
+
+**Fields can be nested into 'Field Groups' for convenience**
+```yaml
+fields:
+  - header:
+      - src: {type: uint16, desc: Address of node sending message }
+      - dst: {type: uint16, desc: Address of node to receive message }
+```
+> **Note** these will be added to the packet as regular fields. The grouping is just for convenience
 
 ## Packets
 A Packet describes an entire message and is made up of fields

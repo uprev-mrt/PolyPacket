@@ -39,12 +39,18 @@ class PolyField:
         return str
 
 class PolyPacket:
-    def __init__(self, desc):
-        self.name = ""
-        self.desc = desc
-        self.fields = []
-        for fieldDesc in desc.fields:
-            self.fields.append(PolyField(fieldDesc))
+    def __init__(self, protocol ):
+        self.protocol = protocol
+        self.fields = {}
+
+    def parse(self, bytes):
+        self.raw = bytes
+
+        #self.desc = desc
+        # for fieldDesc in desc.fields:
+        #     self.fields.append(PolyField(fieldDesc))
+
+        return True
 
     def pack(self):
         byteArr = []
@@ -59,10 +65,12 @@ class PolyPacket:
         return str
 
 class PolyIface:
-    def __init__(self, connStr):
+    def __init__(self, connStr, service):
         self.connStr = connStr
+        self.service = service
         self.bytesIn = deque([])
         self.frameCount =0
+        self.packetsIn = deque([])
 
     def feedEncodedBytes(self, bytes):
         self.bytesIn.append(bytes)
@@ -71,9 +79,9 @@ class PolyIface:
             if i == 0:
                 self.frameCount +=1
 
-    def getPacketBytes(self):
-        encodedPacket =[]
-        if self.frameCount > 0:
+        while self.frameCount > 0:
+            encodedPacket =[]
+            newPacket = PolyPacket(self.service.protocol)
             while(1):
                 x = self.bytesIn.popleft()
                 if x == 0:
@@ -82,13 +90,12 @@ class PolyIface:
                 else
                     encodedPacket.append(i)
 
+            newPacket.parse(cobs.decode(encodedPacket))
+            self.packetsIn.append(newPacket)
 
-        return cobs.decode(encodedPacket)
-
-
-
-
-
+    def getPacket(self):
+        if len(packetsIn) > 0:
+            return packetsIn.popleft()
 
 
 
@@ -98,7 +105,7 @@ class PolyService:
         self.interfaces = []
 
     def addIface(self, connStr):
-        self.interfaces.append(PolyIface(connStr))
+        self.interfaces.append(PolyIface(connStr, self))
 
     def process(self):
         for iface in self.interfaces:

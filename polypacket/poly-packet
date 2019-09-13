@@ -90,7 +90,7 @@ def genUtility(protocol, inputFile, path):
 def init_args():
     global parser
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
-    parser.add_argument('-i', '--input', type=str, help='input file to parse', required=True)
+    parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
     parser.add_argument('-o', '--output', type=str, help='Output path', default="")
     parser.add_argument('-d', '--document', type=str, help='documentation path', default="")
     parser.add_argument('-j', '--javascript', type=str, help='javascript output path', default="")
@@ -98,6 +98,7 @@ def init_args():
     parser.add_argument('-s', '--snippets', action='store_true', help='Adds helpful code snippets to files', default=False)
     parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
     parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
+    parser.add_argument('-e', '--example', action='store_true', help='generates example protocol file', default=False)
 
 
 
@@ -116,43 +117,58 @@ def main():
     docPath = args.document
     jsPath = args.javascript
 
-    fileCrc = crc(inputFile)
 
-    print( "Parsing " + inputFile)
+    if args.example:
+        print("Creating example protocol file: sample_protocol.yml!")
+        f= open("sample_protocol.yml","wb")
+        f.write(pkgutil.get_data('polypacket','examples/sample_protocol.yml'))
+        f.close()
+        sys.exit()
 
-    protocol = buildProtocol(inputFile)
+    if inputFile == "":
+        print("No input file specified, use -e to create an example file")
+        sys.exit()
 
-    protocol.hash = fileCrc
-    print( "Protocol "+ protocol.name+ " generated!")
-    protocol.genTime = now.strftime("%m/%d/%y")
+    if os.path.isfile(inputFile):
+        fileCrc = crc(inputFile)
 
-    protocol.snippets = args.snippets
+        print( "Parsing " + inputFile)
 
-    #get path of this script so we can run remotely
-    script_dir = os.path.dirname(__file__)
-    xmlPath = os.path.dirname(inputFile)
+        protocol = buildProtocol(inputFile)
+
+        protocol.hash = fileCrc
+        print( "Protocol "+ protocol.name+ " generated!")
+        protocol.genTime = now.strftime("%m/%d/%y")
+
+        protocol.snippets = args.snippets
+
+        #get path of this script so we can run remotely
+        script_dir = os.path.dirname(__file__)
+        xmlPath = os.path.dirname(inputFile)
 
 
-    if(docPath != ""):
-        buildTemplate(protocol, 'templates/doc_template.md', docPath +"/"+ protocol.name+"_ICD.md")
-        buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
-        #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
+        if(docPath != ""):
+            buildTemplate(protocol, 'templates/doc_template.md', docPath +"/"+ protocol.name+"_ICD.md")
+            buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
+            #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
 
-    if(jsPath != ""):
-        buildTemplate(protocol,  'templates/javascript_template.js', jsPath + protocol.fileName+".js");
+        if(jsPath != ""):
+            buildTemplate(protocol,  'templates/javascript_template.js', jsPath + protocol.fileName+".js");
 
-    if(utilPath != ""):
-        print ("Generating Utility from:" +inputFile)
-        genUtility(protocol,inputFile, utilPath)
+        if(utilPath != ""):
+            print ("Generating Utility from:" +inputFile)
+            genUtility(protocol,inputFile, utilPath)
 
-    if(path != ""):
-        buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
-        buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")
+        if(path != ""):
+            buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
+            buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")
 
-        if(args.app):
-            buildTemplate(protocol,'templates/app_template.h', path+"/app_" + protocol.name.lower() +".h")
-            buildTemplate(protocol, 'templates/app_template.c', path+"/app_" + protocol.name.lower()+".c")
+            if(args.app):
+                buildTemplate(protocol,'templates/app_template.h', path+"/app_" + protocol.name.lower() +".h")
+                buildTemplate(protocol, 'templates/app_template.c', path+"/app_" + protocol.name.lower()+".c")
 
+    else:
+        print(" No such file: " + inputFile)
 
 
 
