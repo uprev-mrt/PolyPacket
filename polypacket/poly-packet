@@ -1,176 +1,229 @@
 #!/usr/bin/python3
-#
-#@file make_protocol.py
-#@brief python script to generate code for PolyPacket
-#@author Jason Berger
-#@date 02/19/2019
-#
+"""
+An example of a BufferControl in a full screen layout that offers auto
+completion.
+Important is to make sure that there is a `CompletionsMenu` in the layout,
+otherwise the completions won't be visible.
+"""
+from prompt_toolkit.application import Application
+from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.widgets import SearchToolbar, TextArea
+from prompt_toolkit.layout.containers import (
+    Float,
+    FloatContainer,
+    HSplit,
+    Window,
+)
+from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.styles import Style
+from prompt_toolkit.layout.menus import CompletionsMenu
+
+from polypacket.protocol import *
+from polypacket.polyservice import *
 
 import sys
-import xml.etree.ElementTree as ET
-import re
-import io
 import os
-import copy
-import datetime
-import zlib
 import argparse
-#import pdfkit
-from shutil import copyfile
-from mako.template import Template
-import pkgutil
-import polypacket
-import subprocess
-from polypacket.protocol import *
 
 args = None
 parser = None
+PROTOCOL = ''
+SERVICE = ''
 
-now = datetime.datetime.now()
-path ="./"
+# The completer.
+command_completer = WordCompleter([
+    'connect', 'send'], ignore_case=True)
 
+connect_completer = WordCompleter(['serial:','udp:'],ignore_case=True)
 
-
-def buildTemplate(protocol, templateFile, outputFile):
-    template = Template(pkgutil.get_data('polypacket',templateFile) )
-    text_file = open( outputFile , "w")
-    text_file.write("\n".join(template.render(proto = protocol).splitlines()))
-    #text_file.write(template.render(proto = protocol))
-    text_file.close()
-
-def initRepo(path):
-    subprocess.check_output(['git','init',path] )
+packet_completer = ''
 
 
-def addSubModule(gitpath, suburl, subpath):
-    path = os.getcwd()
-    os.chdir(gitpath)
-    subprocess.check_output(['git','submodule','add', suburl,  subpath] )
-    os.chdir(path)
+outputBuffer = Buffer(multiline=True)
+
+# Style.
+style = Style([
+    ('output-win', 'bg:#000000 #00ff00'),
+    ('input-win', 'bg:#000000 #ffffff'),
+    ('line',        '#004400'),
+    ('status', 'bg:#004400 #ffffff')
+])
+
+def onInputChange(buff):
+    global outputBuffer
+    global PROTOCOL
+    input = buff.text
+    if len(input) > 0:
+        if input[-1:] == " ":
+            word = input.split()[0].strip()
+            if word.lower() == 'connect':
+                buff.completer = connect_completer
+
+            elif word in PROTOCOL.packetIdx:
+                id = PROTOCOL.packetIdx[word]
+                packet = PROTOCOL.packets[id]
+                fields = []
+                for field in packet.fields:
+                    fields.append(field.name +":")
+
+                buff.completer = WordCompleter(fields,ignore_case=True )
+
+# The layout
+inputBuffer = Buffer(completer=command_completer, complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
+#inputBuffer.text = 'SendCmd src: 45, dst: 32, cmd: 4'
+
+outputWin = Window(BufferControl(buffer=outputBuffer,focusable=False), height=20, style='class:output-win')
+inputWin = Window(BufferControl(buffer=inputBuffer),style='class:input-win')
+body = FloatContainer(
+    content=HSplit([
+        outputWin,
+        Window(height=1, char='-', style='class:line'),
+        inputWin,
+    ]),
+    floats=[
+        Float(xcursor=True,
+              ycursor=True,
+              content=CompletionsMenu(max_height=16, scroll_offset=1))
+    ]
+)
 
 
-def genUtility(protocol, inputFile, path):
-    protocol.utilName = os.path.basename(path)
-    path+="/"
-    srcPath = path +"src/"
-    libPath = path +"src/lib/"
-    buildPath = path+"build/"
-    docPath = path+"doc/"
-    polyPath = path+"MrT/Modules/Utilities/PolyPacket"
-    xmlPath = os.path.dirname(inputFile)
+# Key bindings
+kb = KeyBindings()
 
-    if not os.path.isdir(path):
-        os.makedirs(path)
-        initRepo(path)
-        addSubModule(path, "https://github.com/uprev-mrt/libCOBS.git" ,"MrT/Modules/Utilities/COBS")
-        addSubModule(path, "https://github.com/uprev-mrt/libPolyPacket.git" ,"MrT/Modules/Utilities/PolyPacket")
-        addSubModule(path, "https://github.com/uprev-mrt/libJSON.git" ,"MrT/Modules/Utilities/JSON")
-        addSubModule(path, "https://github.com/uprev-mrt/platform-common.git" ,"MrT/Modules/Platforms/Common")
-        addSubModule(path, "https://github.com/uprev-mrt/platform-linux.git" ,"MrT/Modules/Platforms/Linux")
-        os.makedirs(srcPath)
-        os.makedirs(libPath)
-        os.makedirs(buildPath)
-        os.makedirs(docPath)
-    os.system('cp '+ inputFile +' '+ path)
-    #os.system('cp '+ script_dir+'/linux_uart/linux_uart* '+ libPath)
-    #TODO commit
 
-    protocol.genUtility = True
-    buildTemplate(protocol, 'templates/cmake_template.txt', path + 'CMakeLists.txt')
-    buildTemplate(protocol, 'templates/c_header_template.h', libPath + protocol.fileName+".h")
-    buildTemplate(protocol, 'templates/c_source_template.c', libPath + protocol.fileName+".c")
-    buildTemplate(protocol, 'templates/app_template.h', srcPath+"app_" + protocol.name.lower() +".h")
-    buildTemplate(protocol, 'templates/app_template.c', srcPath+"app_" + protocol.name.lower()+".c")
-    buildTemplate(protocol, 'templates/util_main_template.c', srcPath+"main.c")
-    buildTemplate(protocol, 'templates/doc_template.md', docPath + protocol.name+"_ICD.md")
-    buildTemplate(protocol, 'templates/doc_template.html', docPath + protocol.name+"_ICD.html")
-    protocol.genUtility = False #set this back in case someone does this out of order
+@kb.add('q')
+@kb.add('c-c')
+def _(event):
+    " Quit application. "
+    event.app.exit()
+
+# @kb.add('enter')
+# def _(event):
+#     global packet_completer
+#     new_text =outputBuffer.text + "\n"+ inputBuffer.text
+#     outputBuffer.text = new_text
+#     inputBuffer.text = '>>> '
+#     inputBuffer.completer = packet_completer
+#     testService(SERVICE)
+
+def accept(buff):
+    global packet_completer
+    #new_text =outputBuffer.text + "\n"+ inputBuffer.text
+    #outputBuffer.text = new_text
+    parseCommand(inputBuffer.text)
+    #inputBuffer.text = '>>> '
+    inputBuffer.completer = packet_completer
+
+
+#buff.on_text_changed = onInputChange;
+inputBuffer.accept_handler = accept
+
+
+# The `Application`
+application = Application(
+    layout=Layout(body),
+    key_bindings=kb,
+    style=style,
+    full_screen=True)
 
 # Initialize the argument parser
 def init_args():
     global parser
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
-    parser.add_argument('-o', '--output', type=str, help='Output path', default="")
-    parser.add_argument('-d', '--document', type=str, help='documentation path', default="")
-    parser.add_argument('-j', '--javascript', type=str, help='javascript output path', default="")
-    parser.add_argument('-a', '--app', action='store_true', help='Generates the app layer code to fill out', default=False)
-    parser.add_argument('-s', '--snippets', action='store_true', help='Adds helpful code snippets to files', default=False)
-    parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
-    parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
-    parser.add_argument('-e', '--example', action='store_true', help='generates example protocol file', default=False)
+    parser.add_argument('-t', '--test', action='store_true', help='Runs test on protocol', default=False)
+
+def printToConsole( text):
+    global outputBuffer
+    new_text =outputBuffer.text + "\n"
+    new_text+=  text
 
 
+    outputBuffer.text = new_text
 
-def main():
-    global path
+def parseCommand(text):
+
+    words = text.split()
+
+    if words[0].lower() == 'connect':
+        SERVICE.addIface(words[1])
+        return 0
+
+    packetType = words[0].strip()
+
+    newPacket = SERVICE.newPacket(packetType)
+
+    if len(words) > 1:
+        fields = text[len(packetType):].split(',')
+
+        for field in fields:
+            subFields = field.split(':')
+            fname = subFields[0].strip()
+            val = subFields[1].strip()
+            newPacket.setField(fname, val)
+
+    SERVICE.interfaces[0].sendPacket(newPacket)
+
+def run():
     global parser
     global args
+    global inputBuffer
+    global PROTOCOL
+    global SERVICE
+    global packet_completer
 
     init_args()
     args= parser.parse_args()
-    argCount = len(sys.argv)
 
+    # The layout.
+    #search_field = SearchToolbar()  # For reverse search.
     inputFile = args.input
-    path = args.output
-    utilPath = args.utility
-    docPath = args.document
-    jsPath = args.javascript
-
-
-    if args.example:
-        print("Creating example protocol file: sample_protocol.yml!")
-        f= open("sample_protocol.yml","wb")
-        f.write(pkgutil.get_data('polypacket','examples/sample_protocol.yml'))
-        f.close()
-        sys.exit()
 
     if inputFile == "":
-        print("No input file specified, use -e to create an example file")
+        print("No input file specified, use poly-packet -e to create an example file")
         sys.exit()
 
     if os.path.isfile(inputFile):
-        fileCrc = crc(inputFile)
-
         print( "Parsing " + inputFile)
+        PROTOCOL = buildProtocol(inputFile)
 
-        protocol = buildProtocol(inputFile)
-
-        protocol.hash = fileCrc
-        print( "Protocol "+ protocol.name+ " generated!")
-        protocol.genTime = now.strftime("%m/%d/%y")
-
-        protocol.snippets = args.snippets
-
-        #get path of this script so we can run remotely
-        script_dir = os.path.dirname(__file__)
-        xmlPath = os.path.dirname(inputFile)
+        SERVICE = PolyService(PROTOCOL)
+        SERVICE.print = printToConsole
+        if args.test:
+            testService(SERVICE)
 
 
-        if(docPath != ""):
-            buildTemplate(protocol, 'templates/doc_template.md', docPath +"/"+ protocol.name+"_ICD.md")
-            buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
-            #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
+    packetNames = []
+    for packet in PROTOCOL.packets:
+        packetNames.append(packet.name)
 
-        if(jsPath != ""):
-            buildTemplate(protocol,  'templates/javascript_template.js', jsPath + protocol.fileName+".js");
+    packetNames.append('connect')
 
-        if(utilPath != ""):
-            print ("Generating Utility from:" +inputFile)
-            genUtility(protocol,inputFile, utilPath)
+    packet_completer = WordCompleter(packetNames,ignore_case=True)
 
-        if(path != ""):
-            buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
-            buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")
+    inputBuffer.completer = packet_completer
 
-            if(args.app):
-                buildTemplate(protocol,'templates/app_template.h', path+"/app_" + protocol.name.lower() +".h")
-                buildTemplate(protocol, 'templates/app_template.c', path+"/app_" + protocol.name.lower()+".c")
+    application.run()
 
-    else:
-        print(" No such file: " + inputFile)
+def testService(service):
+
+    service.addIface("")
+    newPacket = service.newPacket('Data')
+    newPacket.setField('sensorA', 123)
+    newPacket.setField('sensorName', "testName")
+
+    #print(newPacket.printJSON())
+
+    test = service.interfaces[0].sendPacket(newPacket)
 
 
+    service.interfaces[0].feedEncodedBytes(test)
 
-if __name__ == "__main__":
-    main()
+    #exit()
+
+if __name__ == '__main__':
+    run()

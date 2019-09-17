@@ -14,6 +14,12 @@ from collections import deque
 from cobs import cobs
 import struct
 import random
+import threading
+import errno
+import socket
+
+
+
 
 
 def packVarSize(value):
@@ -27,6 +33,9 @@ def packVarSize(value):
         if value > 0:
             tmp |= 0x80
         bytes.append(tmp)
+
+    if len(bytes) == 0:
+        bytes.append(0)
 
     return bytes
 
@@ -44,6 +53,47 @@ def readVarSize(bytes):
             break
 
     return val, size
+
+class PolyUdp (threading.Thread):
+    def __init__(self, iface, localPort ):
+        threading.Thread.__init__(self)
+        self.iface = iface
+        self.localPort = localPort
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.setblocking(0)
+        self.socket.bind(("127.0.0.1", self.localPort))
+        self.iface.print(self.iface.name + " Listening on port: " + str(localPort))
+        self.host = 0
+
+    def __del__(self):
+        self.socket.close()
+        threading.Thread.__del__(self)
+
+    def close(self):
+        self.socket.close()
+
+    def connect(self, hostIp, hostPort):
+        self.iface.print(self.iface.name + " Connecting to " + hostIp + ":"+str(hostPort))
+        self.host = (hostIp, hostPort)
+
+    def send(self, data):
+        if not self.host == 0:
+            self.socket.sendto(data, self.host)
+
+    def run(self):
+        while True:
+            try:
+                data, address = self.socket.recvfrom(1024)
+                if data:
+                    if self.host == 0:
+                        self.host = address
+                        self.iface.service.print("Connection Accepted: " + str(self.host))
+                    #self.iface.print(" <<< " + ''.join(' {:02x}'.format(x) for x in data))
+                    self.iface.feedEncodedBytes(data)
+            except IOError as e:  # and here it is handeled
+                if e.errno == errno.EWOULDBLOCK:
+                    pass
 
 
 class PolyField:
@@ -91,14 +141,14 @@ class PolyField:
                 self.len = 1
 
         if self.desc.isString:
-            self.values[0] = struct.unpack(">" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])[0].decode("utf-8")
+            self.values[0] = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])[0].decode("utf-8")
         else:
-            self.values = struct.unpack(">" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])
+            self.values = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])
         return idx + self.len +1
 
     def pack(self, id):
         byteArr = bytes([])
-        strFormat = ">" + str(self.len)+ self.desc.pyFormat
+        strFormat = "<" + str(self.len)+ self.desc.pyFormat
 
         byteArr += packVarSize(id)
 
@@ -107,7 +157,7 @@ class PolyField:
 
 
         if self.desc.isString:
-            byteArr+= struct.pack(">" +str(self.len) + "s", self.values[0].encode('utf-8'))
+            byteArr+= struct.pack("<" +str(self.len) + "s", self.values[0].encode('utf-8'))
         else:
             byteArr+= struct.pack(strFormat, *self.values)
 
@@ -132,10 +182,11 @@ class PolyPacket:
         self.fields = []
         self.seq =0
         self.dataLen = 0
-        self.token = randint(1, 32767)
+        self.token = random.randint(1, 32767)
         self.checksum = 0
         self.typeId = 0
         self.packet_handler = ''
+        self.ackFlag = False
 
     def setField(self, fieldName, value):
         for field in self.fields:
@@ -150,23 +201,37 @@ class PolyPacket:
         for fieldDesc in self.desc.fields:
             self.fields.append( PolyField(fieldDesc))
 
+    def copyTo(self, packet):
+        return 0
+
     def handler(self, iface):
+
+        #dont respond to acks
+        if self.ackFlag:
+            iface.print("Ignore, this is an ack")
+            return 0
+
         if not self.packet_handler == '':
             newPacket = self.packet_handler(self)
-        else
+        else:
             newPacket = iface.service.newPacket('Ack')
 
-        newPacket.token = self.token + 32768
+        newPacket.ackFlag = True
+
+        return newPacket
 
     def parse(self, rawBytes):
         self.raw = rawBytes
         idx =0;
         #pull in header
+
         self.typeId = rawBytes[0]
         self.seq = rawBytes[1]
-        self.dataLen = (rawBytes[2] << 8) | rawBytes[3]
-        self.token =   (rawBytes[4] << 8) | rawBytes[5]
-        self.checksum =   (rawBytes[6] << 8) | rawBytes[7]
+        self.dataLen = (rawBytes[3] << 8) | rawBytes[2]
+        self.token =   (rawBytes[5] << 8) | rawBytes[4]
+        if rawBytes[5] & 0x80:
+            self.ackFlag = True
+        self.checksum =   (rawBytes[7] << 8) | rawBytes[6]
 
         idx = 8
 
@@ -185,21 +250,34 @@ class PolyPacket:
     def pack(self):
         byteArr =  bytes([])
         dataArr = bytes([])
+        self.checksum = 1738
 
         #TODO add header
         for i,field in enumerate(self.fields):
             if field.isPresent:
                 dataArr += field.pack(i)
 
+        for dat in dataArr:
+            self.checksum += dat
+
         self.dataLen = len(dataArr)
 
-        byteArr = struct.pack('BBHHH', self.typeId, self.seq, self.dataLen, self.token, self.checksum)
+        byteArr = struct.pack('<BBHHH', self.typeId, self.seq, self.dataLen, self.token, self.checksum)
+        if self.ackFlag:
+            byteArr[5] |= 0x80
         self.raw = byteArr + dataArr
         return self.raw
 
     def printJSON(self, meta= False):
-        json ="{ \"typeId\" : \""+ self.desc.name + "\""
+        json = ""
+        #json += ''.join(' {:02x}'.format(x) for x in self.raw) + "\n"
+        json +="{ \"packetType\" : \""+ self.desc.name + "\""
 
+        if meta:
+            json+= ", \"typeId\": "  + str(self.typeId)
+            json+= ", \"token\": \"" + '{:04x}'.format(self.token) + "\""
+            json+= ", \"token\": \"" + '{:04x}'.format(self.checksum) + "\""
+            json+= ", \"len\": "  + str(self.dataLen) + " "
 
 
         for field in self.fields:
@@ -216,7 +294,23 @@ class PolyIface:
         self.bytesIn = deque([])
         self.frameCount =0
         self.packetsIn = deque([])
-        self.name = "iface0"
+        self.name = ""
+
+        words = connStr.split(':')
+
+        if words[0] == 'udp':
+            self.coms = PolyUdp(self, int(words[1]))
+            self.name = "UDP"
+            if len(words) == 3:
+                self.coms.connect('127.0.0.1', int(words[2]))
+            if len(words) == 4:
+                self.coms.connect(words[2], int(words[3]))
+
+            self.coms.start()
+
+    def close(self):
+        self.coms.close()
+        self.coms.stop()
 
     def print(self, text):
         if not self.service.print == '':
@@ -242,8 +336,11 @@ class PolyIface:
 
             newPacket.parse(cobs.decode(encodedPacket))
 
-            self.print( " <<< " + newPacket.printJSON())
-            self.packetsIn.append(newPacket)
+            self.print( " <<< " + newPacket.printJSON(True))
+            resp = newPacket.handler(self)
+            if resp:
+                self.sendPacket(resp)
+            #self.packetsIn.append(newPacket)
 
     def sendPacket(self, packet):
         raw = packet.pack()
@@ -251,7 +348,9 @@ class PolyIface:
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
-        self.print( " >>> " + packet.printJSON())
+        self.print( " >>> " + packet.printJSON(True))
+
+        self.coms.send(encoded)
 
         return encoded
 
@@ -268,6 +367,10 @@ class PolyService:
         self.interfaces = []
         self.print = ''
 
+    def close(self):
+        for iface in self.interfaces:
+            iface.close()
+
     def addIface(self, connStr):
         self.interfaces.append(PolyIface(connStr, self))
 
@@ -277,7 +380,7 @@ class PolyService:
         if type in self.protocol.packetIdx:
             packet.build(self.protocol.packetIdx[type])
         else:
-            seld.print(" Packet Type \"" + type + "\", not found!")
+            self.print(" Packet Type \"" + type + "\", not found!")
 
         return packet
 

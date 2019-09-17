@@ -210,20 +210,59 @@ It then lists the packets, and which fields are in each packet. fields are consi
 
 ## Using Poly Packet
 
-To use poly packet, write your YAML to define the fields and packets in your protocol. Then use poly-packet to generate the source code.
+To use poly packet, write your YAML to define the fields and packets in your protocol. Then use poly-make to generate the source code, or poly-packet to run the an interactive interface with the protocol
 
+### poly-packet
 
->the mako module is required (pip install mako)
+the poly-packet tool can be used to test a protocol, or just as a utility for existing devices. The tool features auto-complete and you can get a list of options with 'tab'
+
+terminal 1:
+int the first terminal open the tool and then connect to port 8000
 ```bash
-poly-packet -i sample_protocol.yml -o . -a
+poly-packet -i sample_protocol.yml
+connect udp:8000
+```
+
+terminal 2:
+on the second, open port 8001 and connect to 8000
+to send a packet, type the name of the packet and then fill in the fields (make sure to use seperating commas)
+```bash
+poly-packet -i sample_protocol.yml
+connect udp:8001:8000
+Data sensorA: 89 , sensorB: 87 , sensorName: test name  
+```
+
+
+### poly-make
+
+poly-make is the tool that will turn the yaml description into c code for projects.
+
+The easiest way to get familiar is to generate a utility. This will create an entire cmake project, and is a good starting point:
+
+```bash
+poly-make -i sample_protocol.yml -u sample_util
+
+## To buil/run:
+cd sample_util/build
+cmake ..
+make
+./sample_util
+```
+
+If you would rather just create the service code and/or application layer in an existing project you can use:
+
+```bash
+poly-make -i sample_protocol.yml -o . -a
 ```
 * -i is for input file, this will be the YAML file used
 * -o is the output directory, this is where the code and documentation will be generated
-* -a tells the tool to create an application layer for you
+* -a tells the tool to create an application layer for you. This is just skeleton code with all of the packet handlers and initialization code
 * -u specifies a path to create a standalone serial utility for the service
 
 >by default all functions will start with the prefix 'pp'. but the 'prefix' attribute can be used in the YAML to set a different prefix. this allows the use of multiple services/protocols in a single project without conflict
 
+
+# Using Generated Code
 
 This example shows how to use the code to create a service. The service is initialized with 1 interface:
 
