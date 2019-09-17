@@ -409,6 +409,7 @@ HandlerStatus_e ${proto.prefix}_sendPing(int iface)
   //create packet
   ${proto.prefix}_packet_t packet;
   ${proto.prefix}_packet_build(&packet, ${proto.prefix.upper()}_PACKET_PING);
+  ${proto.prefix}_setIcd(&packet,  ${proto.prefix.upper()}_SERVICE_HASH );
 
   ${proto.prefix}_status = ${proto.prefix}_send(iface,&packet); //send packet
   ${proto.prefix}_clean(&packet); //This will only free the underlying packet if the spooling was unsuccessful
@@ -472,6 +473,9 @@ HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
 __attribute__((weak)) HandlerStatus_e ${proto.prefix}_Ping_handler(${proto.prefix}_packet_t* ${proto.prefix}_ping, ${proto.prefix}_packet_t* ${proto.prefix}_ack)
 {
   /* Ack token has already been set as ping token with POLY_ACK_FLAG*/
+  uint32_t icd_hash = ${proto.prefix}_getIcd(${proto.prefix}_ping);
+  assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH )
+
   return PACKET_HANDLED;
 }
 

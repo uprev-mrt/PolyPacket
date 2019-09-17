@@ -189,12 +189,18 @@ def run():
 
     if os.path.isfile(inputFile):
         print( "Parsing " + inputFile)
+        fileCrc, fileHash = crc(inputFile)
+
         PROTOCOL = buildProtocol(inputFile)
 
         SERVICE = PolyService(PROTOCOL)
         SERVICE.print = printToConsole
         if args.test:
             testService(SERVICE)
+
+
+        PROTOCOL.hash = fileHash
+        PROTOCOL.crc = fileCrc
 
 
     packetNames = []

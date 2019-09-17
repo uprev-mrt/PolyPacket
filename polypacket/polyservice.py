@@ -336,19 +336,23 @@ class PolyIface:
 
             newPacket.parse(cobs.decode(encodedPacket))
 
-            self.print( " <<< " + newPacket.printJSON(True))
+            self.print( " <<< " + newPacket.printJSON(service.showMeta))
             resp = newPacket.handler(self)
             if resp:
                 self.sendPacket(resp)
             #self.packetsIn.append(newPacket)
 
     def sendPacket(self, packet):
+
+        if packet.desc.name == "Ping":
+            packet.setField('icd', self.service.protocol.crc)
+
         raw = packet.pack()
 
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
-        self.print( " >>> " + packet.printJSON(True))
+        self.print( " >>> " + packet.printJSON(service.showMeta))
 
         self.coms.send(encoded)
 
@@ -366,6 +370,7 @@ class PolyService:
         self.protocol = protocol
         self.interfaces = []
         self.print = ''
+        self.showMeta = False
 
     def close(self):
         for iface in self.interfaces:

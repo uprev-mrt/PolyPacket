@@ -79,7 +79,9 @@ def crc(fileName):
     prev = 0
     for eachLine in open(fileName,"rb"):
         prev = zlib.crc32(eachLine, prev)
-    return "%X"%(prev & 0xFFFFFFFF)
+
+
+    return prev,"%X"%(prev & 0xFFFFFFFF)
 
 
 class fieldVal:
@@ -455,6 +457,9 @@ class protocolDesc:
 def addStandardPackets(protocol):
     ping = packetDesc("Ping", protocol)
     ack = packetDesc("Ack", protocol)
+    icd = fieldDesc("icd", "uint32")
+    icd.isRequired = True
+    icd.setPrefix(protocol.prefix)
     ping.desc = "This message requests an Ack from a remote device to test connectivity"
     ping.response = ack
     ping.hasResponse = True
@@ -462,6 +467,8 @@ def addStandardPackets(protocol):
     ack.desc ="Acknowledges any packet that does not have an explicit response"
     ping.standard = True
     ack.standard = True
+    protocol.addField(icd)
+    ping.addField(icd)
     protocol.addPacket(ping)
     protocol.addPacket(ack)
 

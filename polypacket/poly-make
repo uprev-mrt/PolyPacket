@@ -130,13 +130,14 @@ def main():
         sys.exit()
 
     if os.path.isfile(inputFile):
-        fileCrc = crc(inputFile)
+        fileCrc, fileHash = crc(inputFile)
 
         print( "Parsing " + inputFile)
 
         protocol = buildProtocol(inputFile)
 
-        protocol.hash = fileCrc
+        protocol.hash = fileHash
+        protocol.crc = fileCrc
         print( "Protocol "+ protocol.name+ " generated!")
         protocol.genTime = now.strftime("%m/%d/%y")
 
