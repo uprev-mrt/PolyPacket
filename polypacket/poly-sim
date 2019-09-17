@@ -45,7 +45,7 @@ outputBuffer = Buffer(multiline=True)
 
 # Style.
 style = Style([
-    ('output-win', 'bg:#000000 #ffffff'),
+    ('output-win', 'bg:#000000 #00ff00'),
     ('input-win', 'bg:#000000 #ffffff'),
     ('line',        '#004400'),
     ('status', 'bg:#004400 #ffffff')
@@ -69,9 +69,9 @@ def onInputChange(buff):
 
 # The layout
 inputBuffer = Buffer(completer=command_completer, complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
-#inputBuffer.text = '>>>'
+#inputBuffer.text = 'SendCmd src: 45, dst: 32, cmd: 4'
 
-outputWin = Window(BufferControl(buffer=outputBuffer,focusable=False), height=14, style='class:output-win')
+outputWin = Window(BufferControl(buffer=outputBuffer,focusable=False), height=20, style='class:output-win')
 inputWin = Window(BufferControl(buffer=inputBuffer),style='class:input-win')
 body = FloatContainer(
     content=HSplit([
@@ -97,18 +97,26 @@ def _(event):
     " Quit application. "
     event.app.exit()
 
-@kb.add('enter')
-def _(event):
+# @kb.add('enter')
+# def _(event):
+#     global packet_completer
+#     new_text =outputBuffer.text + "\n"+ inputBuffer.text
+#     outputBuffer.text = new_text
+#     inputBuffer.text = '>>> '
+#     inputBuffer.completer = packet_completer
+#     testService(SERVICE)
+
+def accept(buff):
     global packet_completer
-    new_text =outputBuffer.text + "\n"+ inputBuffer.text
-    outputBuffer.text = new_text
-    inputBuffer.text = '>>> '
+    #new_text =outputBuffer.text + "\n"+ inputBuffer.text
+    #outputBuffer.text = new_text
+    parseCommand(inputBuffer.text)
+    #inputBuffer.text = '>>> '
     inputBuffer.completer = packet_completer
 
 
-
 #buff.on_text_changed = onInputChange;
-
+inputBuffer.accept_handler = accept
 
 
 # The `Application`
@@ -124,6 +132,27 @@ def init_args():
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
     parser.add_argument('-t', '--test', action='store_true', help='Runs test on protocol', default=False)
+
+def printToConsole( text):
+    global outputBuffer
+    new_text =outputBuffer.text + "\n"
+    new_text+=  text
+
+
+    outputBuffer.text = new_text
+
+def parseCommand(text):
+    packetType = text.split()[0]
+    fields = text[len(packetType):].split(',')
+    newPacket = SERVICE.newPacket(packetType)
+
+    for field in fields:
+        subFields = field.split(':')
+        fname = subFields[0].strip()
+        val = subFields[1].strip()
+        newPacket.setField(fname, val)
+
+    SERVICE.interfaces[0].sendPacket(newPacket)
 
 def run():
     global parser
@@ -149,9 +178,11 @@ def run():
         PROTOCOL = buildProtocol(inputFile)
 
         SERVICE = PolyService(PROTOCOL)
-
+        SERVICE.print = printToConsole
+        SERVICE.addIface("")
         if args.test:
             testService(SERVICE)
+
 
     packetNames = []
     for packet in PROTOCOL.packets:
@@ -170,14 +201,14 @@ def testService(service):
     newPacket.setField('sensorA', 123)
     newPacket.setField('sensorName', "testName")
 
-    print(newPacket.printJSON())
+    #print(newPacket.printJSON())
 
     test = service.interfaces[0].sendPacket(newPacket)
 
 
     service.interfaces[0].feedEncodedBytes(test)
 
-    exit()
+    #exit()
 
 if __name__ == '__main__':
     run()

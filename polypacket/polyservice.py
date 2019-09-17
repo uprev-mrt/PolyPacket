@@ -13,6 +13,7 @@ from polypacket.protocol import *
 from collections import deque
 from cobs import cobs
 import struct
+import random
 
 
 def packVarSize(value):
@@ -61,9 +62,10 @@ class PolyField:
         else:
             if self.desc.isString:
                 self.len = len(val)
+                self.values[0] = val
             else:
                 self.len = 1
-            self.values[0] = val
+                self.values[0] = int(val)
 
 
     def get(self):
@@ -130,9 +132,10 @@ class PolyPacket:
         self.fields = []
         self.seq =0
         self.dataLen = 0
-        self.token = 0
+        self.token = randint(1, 32767)
         self.checksum = 0
         self.typeId = 0
+        self.packet_handler = ''
 
     def setField(self, fieldName, value):
         for field in self.fields:
@@ -147,6 +150,13 @@ class PolyPacket:
         for fieldDesc in self.desc.fields:
             self.fields.append( PolyField(fieldDesc))
 
+    def handler(self, iface):
+        if not self.packet_handler == '':
+            newPacket = self.packet_handler(self)
+        else
+            newPacket = iface.service.newPacket('Ack')
+
+        newPacket.token = self.token + 32768
 
     def parse(self, rawBytes):
         self.raw = rawBytes
@@ -206,6 +216,11 @@ class PolyIface:
         self.bytesIn = deque([])
         self.frameCount =0
         self.packetsIn = deque([])
+        self.name = "iface0"
+
+    def print(self, text):
+        if not self.service.print == '':
+            self.service.print( text)
 
     def feedEncodedBytes(self, encodedBytes):
 
@@ -227,7 +242,7 @@ class PolyIface:
 
             newPacket.parse(cobs.decode(encodedPacket))
 
-            print(newPacket.printJSON())
+            self.print( " <<< " + newPacket.printJSON())
             self.packetsIn.append(newPacket)
 
     def sendPacket(self, packet):
@@ -235,6 +250,8 @@ class PolyIface:
 
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
+
+        self.print( " >>> " + packet.printJSON())
 
         return encoded
 
@@ -249,13 +266,18 @@ class PolyService:
     def __init__(self, protocol):
         self.protocol = protocol
         self.interfaces = []
+        self.print = ''
 
     def addIface(self, connStr):
         self.interfaces.append(PolyIface(connStr, self))
 
     def newPacket(self, type):
         packet = PolyPacket(self.protocol)
-        packet.build(self.protocol.packetIdx[type])
+
+        if type in self.protocol.packetIdx:
+            packet.build(self.protocol.packetIdx[type])
+        else:
+            seld.print(" Packet Type \"" + type + "\", not found!")
 
         return packet
 
