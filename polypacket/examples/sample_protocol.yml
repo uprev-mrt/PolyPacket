@@ -71,3 +71,16 @@ structs:
         - sensorA
         - sensorB
         - sensorName
+
+sims:
+  - nodeSim:
+      global: |
+        thisNode
+
+      init: |
+        global thisNode
+        thisNode = SERVICE.newStruct('Node')
+
+      GetData: |
+        global thisNode
+        thisNode.copyTo(resp)

@@ -58,6 +58,22 @@ formatDict = {
     "none" : "FORMAT_NONE"
 }
 
+pyFormatDict = {
+        "uint8" : "B",
+        "int8" : "b",
+        "char" : "c",
+        "string" : "s",
+        "uint16" : "H",
+        "int16" : "h",
+        "uint32" : "L",
+        "int32" : "l",
+        "int64" : "q",
+        "uint64" : "Q",
+        "int" : "l",
+        "float": "f",
+        "double": "d",
+}
+
 
 def crc(fileName):
     prev = 0
@@ -121,6 +137,8 @@ class fieldDesc:
         self.arrayLen = len
         self.type = type
         self.size = sizeDict[self.type] * self.arrayLen
+        self.objSize = sizeDict[self.type]
+        self.pyFormat = pyFormatDict[self.type]
         self.cType = cNameDict[self.type]
         self.cppType = self.cType
 

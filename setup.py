@@ -13,7 +13,7 @@ setuptools.setup(
      author_email="JBerger@up-rev.com",
      description="A tool for building protocol services",
      long_description=long_description,
-     scripts=['polypacket/poly-packet'],
+     scripts=['polypacket/poly-packet','polypacket/poly-sim'],
      long_description_content_type="text/markdown",
      url="http://www.up-rev.com/",
      packages=setuptools.find_packages(),
@@ -22,10 +22,10 @@ setuptools.setup(
      'polypacket':['examples/*'],
      },
      install_requires=[
-        'markdown',
-        'mako',
-        'prompt_toolkit',
-        'pyyaml'
+        # 'markdown',
+        # 'mako',
+        # 'prompt_toolkit',
+        # 'pyyaml'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",
