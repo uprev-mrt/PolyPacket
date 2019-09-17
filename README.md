@@ -14,10 +14,9 @@ Protocols are generated using YAML. The messaging structure is made up 4 entity 
 * Struct
 
 ## Fields
- A field is a data object within a message.
- Fields. These can be defines either as nested yaml, or an inline dictionary
+ A field is a data object within a packet. These can be expressed either as nested yaml, or an inline dictionary
 
-example fields:
+**Example fields:**
 
 ```yaml
 fields:
@@ -31,9 +30,20 @@ fields:
       type: int*24
       desc: Values for remaining 24 sensors
 ```
-> **type**: The data type for the field. * indicates and array. an optional size can be specified wiht \*n <br/>
+> **type**: The data type for the field. \*n indicates it is an array with a max size of n <br/>
 > **format**: (optional)  This sets the display format used for the toString and toJsonString methods [ hex , dec , assci ]  <br/>
 > **desc**: (optional)  The description of the field. This is used to create the documentation  <br/>
+
+<br/>
+
+**Fields can be nested into 'Field Groups' for convenience**
+```yaml
+fields:
+  - header:
+      - src: {type: uint16, desc: Address of node sending message }
+      - dst: {type: uint16, desc: Address of node to receive message }
+```
+> **Note** these will be added to the packet as regular fields. The grouping is just for convenience
 
 ## Packets
 A Packet describes an entire message and is made up of fields
@@ -200,20 +210,59 @@ It then lists the packets, and which fields are in each packet. fields are consi
 
 ## Using Poly Packet
 
-To use poly packet, write your YAML to define the fields and packets in your protocol. Then use poly-packet to generate the source code.
+To use poly packet, write your YAML to define the fields and packets in your protocol. Then use poly-make to generate the source code, or poly-packet to run the an interactive interface with the protocol
 
+### poly-packet
 
->the mako module is required (pip install mako)
+the poly-packet tool can be used to test a protocol, or just as a utility for existing devices. The tool features auto-complete and you can get a list of options with 'tab'
+
+terminal 1:
+int the first terminal open the tool and then connect to port 8000
 ```bash
-poly-packet -i sample_protocol.yml -o . -a
+poly-packet -i sample_protocol.yml
+connect udp:8000
+```
+
+terminal 2:
+on the second, open port 8001 and connect to 8000
+to send a packet, type the name of the packet and then fill in the fields (make sure to use seperating commas)
+```bash
+poly-packet -i sample_protocol.yml
+connect udp:8001:8000
+Data sensorA: 89 , sensorB: 87 , sensorName: test name  
+```
+
+
+### poly-make
+
+poly-make is the tool that will turn the yaml description into c code for projects.
+
+The easiest way to get familiar is to generate a utility. This will create an entire cmake project, and is a good starting point:
+
+```bash
+poly-make -i sample_protocol.yml -u sample_util
+
+## To buil/run:
+cd sample_util/build
+cmake ..
+make
+./sample_util
+```
+
+If you would rather just create the service code and/or application layer in an existing project you can use:
+
+```bash
+poly-make -i sample_protocol.yml -o . -a
 ```
 * -i is for input file, this will be the YAML file used
 * -o is the output directory, this is where the code and documentation will be generated
-* -a tells the tool to create an application layer for you
+* -a tells the tool to create an application layer for you. This is just skeleton code with all of the packet handlers and initialization code
 * -u specifies a path to create a standalone serial utility for the service
 
 >by default all functions will start with the prefix 'pp'. but the 'prefix' attribute can be used in the YAML to set a different prefix. this allows the use of multiple services/protocols in a single project without conflict
 
+
+# Using Generated Code
 
 This example shows how to use the code to create a service. The service is initialized with 1 interface:
 

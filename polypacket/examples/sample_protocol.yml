@@ -11,6 +11,11 @@ desc: This is a sample protocol made up to demonstrate features of the PolyPacke
 
 fields:
 
+  #Fields can be nested into a 'Field Group' for convenience. They will be put in the packet just like regular fields
+  - header:
+      - src: {type: uint16, desc: Address of node sending message }
+      - dst: {type: uint16, desc: Address of node to receive message }
+
   - sensorA: { type: int16 ,desc: Value of Sensor A}  #Simple Fields can be defined as inline dictionares to save space
 
   - sensorB:
@@ -37,15 +42,20 @@ packets:
   - SendCmd:
       desc: Message to send command to node
       fields:
+        - header
         - cmd
+
 
   - GetData:
       desc: Message tp get data from node
       response: Data          #A response packet can be specified
+      fields:
+        - header
 
   - Data:
       desc: contains data from a sensor
       fields:
+        - header
         - sensorA
         - sensorB
         - sensorName : {desc: Name of sensor sending data }   #Field descriptions can be overriden for different packets
@@ -57,7 +67,20 @@ structs:
 
   - Node:
       desc: struct for modeling node
-      field:
+      fields:
         - sensorA
         - sensorB
         - sensorName
+
+sims:
+  - nodeSim:
+      global: |
+        thisNode
+
+      init: |
+        global thisNode
+        thisNode = SERVICE.newStruct('Node')
+
+      GetData: |
+        global thisNode
+        thisNode.copyTo(resp)

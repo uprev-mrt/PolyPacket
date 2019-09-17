@@ -58,12 +58,30 @@ formatDict = {
     "none" : "FORMAT_NONE"
 }
 
+pyFormatDict = {
+        "uint8" : "B",
+        "int8" : "b",
+        "char" : "c",
+        "string" : "s",
+        "uint16" : "H",
+        "int16" : "h",
+        "uint32" : "L",
+        "int32" : "l",
+        "int64" : "q",
+        "uint64" : "Q",
+        "int" : "l",
+        "float": "f",
+        "double": "d",
+}
+
 
 def crc(fileName):
     prev = 0
     for eachLine in open(fileName,"rb"):
         prev = zlib.crc32(eachLine, prev)
-    return "%X"%(prev & 0xFFFFFFFF)
+
+
+    return prev,"%X"%(prev & 0xFFFFFFFF)
 
 
 class fieldVal:
@@ -121,6 +139,8 @@ class fieldDesc:
         self.arrayLen = len
         self.type = type
         self.size = sizeDict[self.type] * self.arrayLen
+        self.objSize = sizeDict[self.type]
+        self.pyFormat = pyFormatDict[self.type]
         self.cType = cNameDict[self.type]
         self.cppType = self.cType
 
@@ -184,7 +204,7 @@ class fieldDesc:
 
 
 class packetDesc:
-    def __init__(self, name):
+    def __init__(self,name, protocol):
         self.name = name
         self.globalName =  "PP_PACKET_"+self.name.upper()
         self.className = name.capitalize() +"Packet"
@@ -197,6 +217,7 @@ class packetDesc:
         self.standard = False
         self.structName = name.lower() + '_packet_t'
         self.hasResponse = False
+        self.protocol = protocol
 
     def camel(self):
         return self.name[:1].capitalize() + self.name[1:]
@@ -207,6 +228,33 @@ class packetDesc:
     def addField(self, field):
         field.id = self.fieldCount
         self.fields.append(field)
+        self.fieldCount+=1
+
+    def addYAMLField(self, pfieldItem):
+
+        if type(pfieldItem) is dict:
+            pfname = list(pfieldItem.keys())[0]
+            pfield = list(pfieldItem.values())[0]
+        else:
+            pfname = pfieldItem
+            pfield = {}
+
+        strReq =""
+        if not (pfname in self.protocol.fieldIdx):
+            print( 'ERROR Field not declared: ' + pfname)
+
+        #get id of field and make a copy
+        idx = self.protocol.fieldIdx[pfname]
+        fieldCopy = copy.copy(self.protocol.fields[idx])
+
+        if('req' in pfield):
+            fieldCopy.isRequired = pfield['req']
+
+        if('desc' in pfield):
+            fieldCopy.desc = pfield['desc']
+
+        fieldCopy.id = self.fieldCount
+        self.fields.append(fieldCopy)
         self.fieldCount+=1
 
     def postProcess(self):
@@ -347,7 +395,6 @@ class packetDesc:
         return output.getvalue();
 
 
-
 class protocolDesc:
     def __init__(self, name):
         self.name = name
@@ -357,6 +404,7 @@ class protocolDesc:
         self.fields = []
         self.fieldIdx = {}
         self.fieldId =0
+        self.fieldGroups = {}
         self.packets = []
         self.packetIdx ={}
         self.packetId =0
@@ -379,6 +427,8 @@ class protocolDesc:
         self.fieldIdx[field.name] = self.fieldId
         self.fieldId+=1
 
+    def addGroup(self, name, fields):
+        self.fieldGroups[name] = fields
 
     def addPacket(self,packet):
         packet.packetId = self.packetId
@@ -405,8 +455,11 @@ class protocolDesc:
 
 
 def addStandardPackets(protocol):
-    ping = packetDesc("Ping")
-    ack = packetDesc("Ack")
+    ping = packetDesc("Ping", protocol)
+    ack = packetDesc("Ack", protocol)
+    icd = fieldDesc("icd", "uint32")
+    icd.isRequired = True
+    icd.setPrefix(protocol.prefix)
     ping.desc = "This message requests an Ack from a remote device to test connectivity"
     ping.response = ack
     ping.hasResponse = True
@@ -414,6 +467,8 @@ def addStandardPackets(protocol):
     ack.desc ="Acknowledges any packet that does not have an explicit response"
     ping.standard = True
     ack.standard = True
+    protocol.addField(icd)
+    ping.addField(icd)
     protocol.addPacket(ping)
     protocol.addPacket(ack)
 
@@ -479,7 +534,7 @@ def parseXML(xmlfile):
     for packet in root.findall('./Packets/Packet'):
         name = packet.attrib['name']
         desc =""
-        newPacket = packetDesc(name)
+        newPacket = packetDesc(name, protocol)
         newPacket.setPrefix(protocol.prefix)
 
         if(name in protocol.packetIdx):
@@ -521,7 +576,7 @@ def parseXML(xmlfile):
     for struct in root.findall('./Structs/Struct'):
         name = struct.attrib['name']
         desc =""
-        newStruct = packetDesc(name)
+        newStruct = packetDesc(name, protocol)
 
 
         if(name in protocol.structIdx):
@@ -566,6 +621,48 @@ def parseXML(xmlfile):
     return protocol
 
 
+def parseYAMLField(protocol, fieldItem):
+    name = list(fieldItem.keys())[0]
+    field = list(fieldItem.values())[0]
+
+    strType = field['type'].replace("(","[").replace(")","]");
+
+    newField = fieldDesc(name, strType)
+    newField.setPrefix(protocol.prefix)
+
+    if('format' in field):
+        format = field['format'].lower()
+        if not format in formatDict:
+            print( "INVALID FORMAT :" + format)
+
+        newField.format = formatDict[format]
+
+    if('desc' in field):
+        newField.desc = field['desc']
+
+    if(name in protocol.fields):
+        print( 'ERROR Duplicate Field Name!: ' + name)
+
+    #get vals if any
+    if "vals" in field:
+        for valItem in field['vals']:
+            if type(valItem) is dict:
+                name = list(valItem.keys())[0]
+                val = list(valItem.values())[0]
+            else:
+                name = valItem
+                val = {}
+
+            newVal = fieldVal(name)
+
+            if('desc' in val):
+                newVal.desc = val['desc']
+
+            newField.addVal(newVal)
+
+    protocol.addField(newField)
+    return newField
+
 def parseYAML(yamlFile):
     data = open(yamlFile)
     objProtocol = yaml.load(data , Loader=yaml.FullLoader)
@@ -583,51 +680,28 @@ def parseYAML(yamlFile):
     protocol.xmlName = os.path.basename(yamlFile)
 
     for fieldItem in objProtocol['fields']:
-        name = list(fieldItem.keys())[0]
-        field = list(fieldItem.values())[0]
-        strType = field['type'].replace("(","[").replace(")","]");
 
-        newField = fieldDesc(name, strType)
-        newField.setPrefix(protocol.prefix)
+        nodeType = list(fieldItem.values())[0]
 
-        if('format' in field):
-            format = field['format'].lower()
-            if not format in formatDict:
-                print( "INVALID FORMAT :" + format)
+        #all fields must have a 'type', so if it doesnt, then it is a field group
+        if not 'type' in list(fieldItem.values())[0]:
+            groupName = list(fieldItem.keys())[0]
+            fieldGroupItems = list(fieldItem.values())[0]
+            groupFields = []
+            for fieldGroupItem in fieldGroupItems:
+                newField = parseYAMLField(protocol, fieldGroupItem)
+                groupFields.append(newField.name)
+            protocol.addGroup(groupName, groupFields)
+        else:
+            parseYAMLField(protocol, fieldItem)
 
-            newField.format = formatDict[format]
-
-        if('desc' in field):
-            newField.desc = field['desc']
-
-        if(name in protocol.fields):
-            print( 'ERROR Duplicate Field Name!: ' + name)
-
-        #get vals if any
-        if "vals" in field:
-            for valItem in field['vals']:
-                if type(valItem) is dict:
-                    name = list(valItem.keys())[0]
-                    val = list(valItem.values())[0]
-                else:
-                    name = valItem
-                    val = {}
-
-                newVal = fieldVal(name)
-
-                if('desc' in val):
-                    newVal.desc = val['desc']
-
-                newField.addVal(newVal)
-
-        protocol.addField(newField)
 
 
     for packetItem in objProtocol['packets']:
         name = list(packetItem.keys())[0]
         packet = list(packetItem.values())[0]
         desc =""
-        newPacket = packetDesc(name)
+        newPacket = packetDesc(name, protocol)
         newPacket.setPrefix(protocol.prefix)
 
         if(name in protocol.packetIdx):
@@ -650,21 +724,12 @@ def parseYAML(yamlFile):
                     pfname = pfieldItem
                     pfield = {}
 
-                strReq =""
-                if not (pfname in protocol.fieldIdx):
-                    print( 'ERROR Field not declared: ' + pfname)
 
-                #get id of field and make a copy
-                idx = protocol.fieldIdx[pfname]
-                fieldCopy = copy.copy(protocol.fields[idx])
-
-                if('req' in pfield):
-                    fieldCopy.isRequired = pfield['req']
-
-                if('desc' in pfield):
-                    fieldCopy.desc = pfield['desc']
-
-                newPacket.addField(fieldCopy)
+                if pfname in protocol.fieldGroups:
+                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                        newPacket.addYAMLField(pfFieldGroupItem)
+                else:
+                    newPacket.addYAMLField(pfieldItem)
 
         newPacket.desc = desc
 
@@ -674,7 +739,7 @@ def parseYAML(yamlFile):
         name = list(structItem.keys())[0]
         struct = list(structItem.values())[0]
         desc =""
-        newStruct = packetDesc(name)
+        newStruct = packetDesc(name,protocol)
 
 
         if(name in protocol.structIdx):
@@ -694,19 +759,12 @@ def parseYAML(yamlFile):
                     pfname = pfieldItem
                     pfield = {}
 
-                strReq =""
-                if not (pfname in protocol.fieldIdx):
-                    print( 'ERROR Field not declared: ' + pfname)
 
-                #get id of field and make a copy
-                idx = protocol.fieldIdx[pfname]
-                fieldCopy = copy.copy(protocol.fields[idx])
-
-
-                if('desc' in pfield):
-                    fieldCopy.desc = pfield['desc']
-
-                newStruct.addField(fieldCopy)
+                if pfname in protocol.fieldGroups:
+                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                        newStruct.addYAMLField(pfFieldGroupItem)
+                else:
+                    newStruct.addYAMLField(pfieldItem)
 
         newStruct.desc = desc
 
