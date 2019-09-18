@@ -216,16 +216,22 @@ class PolyPacket:
         if self.ackFlag:
             return 0
 
-        if not self.packet_handler == '':
-            newPacket = self.packet_handler(self)
+        resp = 0
+
+        if self.desc.name in iface.service.handlers:
+            resp = iface.service.handlers[self.desc.name](self)
+        elif 'default' in iface.service.handlers:
+            resp = iface.service.handlers['default'](self)
+        elif iface.service.autoAck:
+            resp = iface.service.newPacket('Ack')
         else:
-            newPacket = iface.service.newPacket('Ack')
+            return 0
 
-        newPacket.ackFlag = True
 
-        newPacket.token = self.token | 0x8000
+        resp.ackFlag = True
+        resp.token = self.token | 0x8000
 
-        return newPacket
+        return resp
 
     def parse(self, rawBytes):
         self.raw = rawBytes
@@ -345,7 +351,7 @@ class PolyIface:
             newPacket.parse(decoded)
 
 
-            self.print( " <<< " + newPacket.printJSON(self.service.showMeta))
+            self.print( " <-- " + newPacket.printJSON(self.service.showMeta))
             resp = newPacket.handler(self)
             if resp:
                 self.sendPacket(resp)
@@ -363,7 +369,7 @@ class PolyIface:
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
-        self.print( " >>> " + packet.printJSON(self.service.showMeta))
+        self.print( " --> " + packet.printJSON(self.service.showMeta))
 
         self.coms.send(encoded)
 
@@ -382,6 +388,8 @@ class PolyService:
         self.interfaces = []
         self.print = ''
         self.showMeta = False
+        self.autoAck = True
+        self.handlers = {}
 
     def close(self):
         for iface in self.interfaces:

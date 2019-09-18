@@ -83,6 +83,18 @@ def crc(fileName):
 
     return prev,"%X"%(prev & 0xFFFFFFFF)
 
+class simulator:
+    def __init__(self,name, simItem):
+        self.init =""
+        self.handlers = {}
+
+        # if 'init' in simItem:
+        #     self.init = simItem['init']
+        #
+        # for handler in simItem['handlers']:
+        #     name = list(handler.keys())[0]
+        #     code  = list(handler.values())[0]
+        #     self.handlers[name] = code
 
 class fieldVal:
     def __init__(self, name):
@@ -416,6 +428,7 @@ class protocolDesc:
         self.genUtility = False
         self.xmlName =""
         self.utilName =""
+        self.sims = {}
 
     def service(self):
         return self.prefix.upper() +'_SERVICE'
@@ -769,7 +782,10 @@ def parseYAML(yamlFile):
         newStruct.desc = desc
 
         protocol.addStruct(newStruct)
-
+    for simItem in objProtocol['sims']:
+        name = list(simItem.keys())[0]
+        sim = list(simItem.values())[0]
+        protocol.sims[name] = simulator(name,sim)
 
     for packet in protocol.packets:
         for request in packet.requests:
