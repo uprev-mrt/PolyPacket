@@ -208,7 +208,6 @@ class PolyPacket:
 
         #dont respond to acks
         if self.ackFlag:
-            iface.print("Ignore, this is an ack")
             return 0
 
         if not self.packet_handler == '':
@@ -217,6 +216,8 @@ class PolyPacket:
             newPacket = iface.service.newPacket('Ack')
 
         newPacket.ackFlag = True
+
+        newPacket.token = self.token | 0x8000
 
         return newPacket
 
@@ -263,8 +264,6 @@ class PolyPacket:
         self.dataLen = len(dataArr)
 
         byteArr = struct.pack('<BBHHH', self.typeId, self.seq, self.dataLen, self.token, self.checksum)
-        if self.ackFlag:
-            byteArr[5] |= 0x80
         self.raw = byteArr + dataArr
         return self.raw
 
@@ -336,7 +335,7 @@ class PolyIface:
 
             newPacket.parse(cobs.decode(encodedPacket))
 
-            self.print( " <<< " + newPacket.printJSON(service.showMeta))
+            self.print( " <<< " + newPacket.printJSON(self.service.showMeta))
             resp = newPacket.handler(self)
             if resp:
                 self.sendPacket(resp)
@@ -352,7 +351,7 @@ class PolyIface:
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
-        self.print( " >>> " + packet.printJSON(service.showMeta))
+        self.print( " >>> " + packet.printJSON(self.service.showMeta))
 
         self.coms.send(encoded)
 
