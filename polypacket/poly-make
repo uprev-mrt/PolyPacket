@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 #
 #@file make_protocol.py
 #@brief python script to generate code for PolyPacket
