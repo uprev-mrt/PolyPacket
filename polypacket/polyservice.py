@@ -79,6 +79,7 @@ class PolyUdp (threading.Thread):
 
     def send(self, data):
         if not self.host == 0:
+            #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
             self.socket.sendto(data, self.host)
 
     def run(self):
@@ -140,11 +141,16 @@ class PolyField:
             else:
                 self.len = 1
 
-        if self.desc.isString:
-            self.values[0] = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])[0].decode("utf-8")
-        else:
-            self.values = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+self.len+1])
-        return idx + self.len +1
+        dataLen = self.len * self.desc.objSize
+
+        try:
+            if self.desc.isString:
+                self.values[0] = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+dataLen ])[0].decode("utf-8")
+            else:
+                self.values = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+dataLen])
+        except:
+            print(" Error Parsing: " + self.desc.name+ '-->' + ''.join(' {:02x}'.format(x) for x in bytes[idx:idx+dataLen]))
+        return idx + dataLen
 
     def pack(self, id):
         byteArr = bytes([])
@@ -225,7 +231,6 @@ class PolyPacket:
         self.raw = rawBytes
         idx =0;
         #pull in header
-
         self.typeId = rawBytes[0]
         self.seq = rawBytes[1]
         self.dataLen = (rawBytes[3] << 8) | rawBytes[2]
@@ -265,6 +270,7 @@ class PolyPacket:
 
         byteArr = struct.pack('<BBHHH', self.typeId, self.seq, self.dataLen, self.token, self.checksum)
         self.raw = byteArr + dataArr
+
         return self.raw
 
     def printJSON(self, meta= False):
@@ -309,7 +315,6 @@ class PolyIface:
 
     def close(self):
         self.coms.close()
-        self.coms.stop()
 
     def print(self, text):
         if not self.service.print == '':
@@ -333,7 +338,12 @@ class PolyIface:
                 else:
                     encodedPacket+= bytes([x])
 
-            newPacket.parse(cobs.decode(encodedPacket))
+            decoded = cobs.decode(encodedPacket)
+
+            #self.print(" PARSE: " + ''.join(' {:02x}'.format(x) for x in decoded))
+
+            newPacket.parse(decoded)
+
 
             self.print( " <<< " + newPacket.printJSON(self.service.showMeta))
             resp = newPacket.handler(self)
@@ -347,6 +357,8 @@ class PolyIface:
             packet.setField('icd', self.service.protocol.crc)
 
         raw = packet.pack()
+
+        #self.print(" PACK: " + ''.join(' {:02x}'.format(x) for x in raw))
 
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
