@@ -219,16 +219,16 @@ the poly-packet tool can be used to test a protocol, or just as a utility for ex
 terminal 1:
 int the first terminal open the tool and then connect to port 8000
 ```bash
-poly-packet -i sample_protocol.yml
-connect udp:8000
+poly-packet -i sample_protocol.yml -c connect udp:8000
 ```
 
 terminal 2:
-on the second, open port 8001 and connect to 8000
-to send a packet, type the name of the packet and then fill in the fields (make sure to use seperating commas)
+on the second, open port 8001 and connect to 8000.
+To send a packet, type the name of the packet and then fill in the fields (make sure to use separating commas)
 ```bash
-poly-packet -i sample_protocol.yml
-connect udp:8001:8000
+poly-packet -i sample_protocol.yml -c connect udp:8001:8000
+
+#then from the poly-packet terminal:
 Data sensorA: 89 , sensorB: 87 , sensorName: test name  
 ```
 
