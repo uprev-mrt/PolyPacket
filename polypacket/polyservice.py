@@ -222,6 +222,8 @@ class PolyPacket:
             resp = iface.service.handlers[self.desc.name](self)
         elif 'default' in iface.service.handlers:
             resp = iface.service.handlers['default'](self)
+        elif self.desc.hasResponse:
+            resp =  iface.service.newPacket(self.desc.response.name)
         elif iface.service.autoAck:
             resp = iface.service.newPacket('Ack')
         else:
