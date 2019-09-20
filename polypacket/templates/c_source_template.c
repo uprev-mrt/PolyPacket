@@ -298,6 +298,16 @@ void ${proto.prefix}_auto_ack(bool enable)
   ${proto.service()}.mAutoAck = enable;
 }
 
+void ${proto.prefix}_enable_tx(int iface)
+{
+  ${proto.service()}.mInterfaces[iface].mTxReady = true;
+}
+
+void ${proto.prefix}_disable_tx(int iface)
+{
+  ${proto.service()}.mInterfaces[iface].mTxReady = false;
+}
+
 
 /*******************************************************************************
   Meta packet
@@ -474,7 +484,7 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_Ping_handler(${proto.prefi
 {
   /* Ack token has already been set as ping token with POLY_ACK_FLAG*/
   uint32_t icd_hash = ${proto.prefix}_getIcd(${proto.prefix}_ping);
-  assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH )
+  assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH );
 
   return PACKET_HANDLED;
 }

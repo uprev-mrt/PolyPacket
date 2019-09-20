@@ -133,50 +133,7 @@
 <p class="desc">${packet.desc}</p>
 <br/>
 %if len(packet.fields) > 0:
-<b>Structure:</b>
-<table class="fixed" >
-  <tr>
-  <th  >Byte</th>
-  <% count = 0 %>\
-%for field in packet.fields:
-    %if field.size > 4:
-    <th >${count}</th>
-    <th colspan="2">........</th>
-    <th >${(count+field.size) }</th>
-  %else:
-    %for x in range(field.size):
-    <th >${count}</th>
-    <% count += 1 %>\
-    %endfor
-  %endif
-%endfor
-  </tr>
-  <tr>
-    <td>Field</td>
-  %for field in packet.fields:
-      %if field.size > 4:
-      <td colspan="4">${field.name}</td>
-    %else:
-      <td colspan="${field.size}">${field.name}</td>
-    %endif
-  %endfor
-  </tr>
-  <tr>
-    <td>Type</td>
-  %for field in packet.fields:
-      %if field.size > 4:
-      <td colspan="4">\
-    %else:
-      <td colspan="${field.size}">\
-    %endif
-    ${field.cType}\
-    %if field.isArray:
-    [${field.arrayLen}]\
-    %endif
-  </td>
-  %endfor
-  </tr>
-</table>
+
 <br/>
 <b>Fields:</b>
 <table class="fields">

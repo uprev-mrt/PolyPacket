@@ -37,7 +37,22 @@
   <li class="note"> Requests: <a href="#packet_ack">Ack</a></li>
 </ul>
 
-<span class="note"> This Packet type does not contain any data fields </span><br/>
+<p class="desc">Ping to request an <a href="#packet_ack">Ack</a>. Used for testing and ICD verification</p>
+<br/>
+<br/>
+<b>Fields:</b>
+<table class="fields">
+  <tr>
+    <th> Field</th>
+    <th> Type</th>
+    <th> Description</th>
+  </tr>
+  <tr>
+    <td width="">icd</td>
+    <td width="">  uint32_t    </td>
+    <td>32bit Hash of protocol description. This is used to verify endpoints are using the same protocol</td>
+  </tr>
+</table>
 <br/>
 <hr class="thick">
 </div>

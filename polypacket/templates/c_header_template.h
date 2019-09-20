@@ -78,15 +78,11 @@ extern poly_packet_desc_t* ${struct.globalName};
 extern poly_field_desc_t* ${field.globalName};
 % endfor
 
-/*@brief The main type dealt with by the user
- *@note just wraps a poly_packet to prevent mixing them when multiple protocol are in use
+/*
+ *@brief The main type dealt with by the user
  */
-typedef struct{
-  poly_packet_t mPacket;    //internal packet structure
-  bool mSpooled;            //spooled data doesnt get cleaned, the spool owns it now
-  bool mBuilt;
-}${proto.prefix}_packet_t;
 
+typedef meta_packet_t ${proto.prefix}_packet_t;
 typedef ${proto.prefix}_packet_t ${proto.prefix}_struct_t;
 
 
@@ -170,6 +166,13 @@ HandlerStatus_e ${proto.prefix}_send( int iface, ${proto.prefix}_packet_t* packe
   *@param enable true enable auto acks, false disables them
   */
 void ${proto.prefix}_auto_ack(bool enable);
+
+/**
+  *@brief enables/disables the txReady of an interface
+  *@param enable true enable auto acks, false disables them
+  */
+void ${proto.prefix}_enable_tx(int iface);
+void ${proto.prefix}_disable_tx(int iface);
 
 
 /*******************************************************************************
