@@ -34,9 +34,7 @@ parser = None
 PROTOCOL = ''
 SERVICE = ''
 
-# The completer.
-command_completer = WordCompleter([
-    'connect', 'send'], ignore_case=True)
+
 
 connect_completer = WordCompleter(['serial:','udp:'],ignore_case=True)
 
@@ -75,7 +73,7 @@ def onInputChange(buff):
                 buff.completer = WordCompleter(fields,ignore_case=True )
 
 # The layout
-inputBuffer = Buffer(completer=command_completer, complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
+inputBuffer = Buffer( complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
 #inputBuffer.text = 'SendCmd src: 45, dst: 32, cmd: 4'
 
 #outputWin = Window(BufferControl(buffer=outputField,focusable=False), height=20, style='class:output-win')
@@ -162,6 +160,14 @@ def parseCommand(text):
         SERVICE.addIface(words[1])
         return 0
 
+    if words[0].lower() == 'ack':
+        SERVICE.toggleAck()
+        return 0
+
+    if words[0].lower() == 'silence':
+        SERVICE.toggleSilence(words[1])
+        return 0
+
     packetType = words[0].strip()
 
     newPacket = SERVICE.newPacket(packetType)
@@ -217,6 +223,7 @@ def run():
         packetNames.append(packet.name)
 
     packetNames.append('connect')
+    packetNames.append('silence')
 
     packet_completer = WordCompleter(packetNames,ignore_case=True)
 

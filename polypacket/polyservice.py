@@ -61,18 +61,18 @@ class PolySerial (threading.Thread):
         self.iface = iface
         self.port = port
         self.baud = baud
-        self.serialPort = serial.Serial(
-        port = port,
-        baudrate=baud,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE,
-        bytesize= serial.EIGHTBITS
-        )
-
         try:
-            self.serialPort.open()
+            self.serialPort = serial.Serial(
+            port = port,
+            baudrate=baud,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize= serial.EIGHTBITS
+            )
+
             self.iface.print(self.iface.name + " Port Opened : " + port)
-        except Exception, e:
+        except serial.SerialException as e:
+            print(e)
             self.iface.print(self.iface.name + " Could not open port : " + port)
 
 
@@ -232,6 +232,7 @@ class PolyPacket:
         self.checksum = 0
         self.typeId = 0
         self.packet_handler = ''
+        self.autoAck = True
         self.ackFlag = False
 
     def setField(self, fieldName, value):
@@ -254,6 +255,9 @@ class PolyPacket:
 
         #dont respond to acks
         if self.ackFlag:
+            return 0
+
+        if not iface.service.autoAck:
             return 0
 
         resp = 0
@@ -397,8 +401,9 @@ class PolyIface:
 
             newPacket.parse(decoded)
 
+            if not self.service.silenceDict[newPacket.desc.name]:
+                self.print( " <-- " + newPacket.printJSON(self.service.showMeta))
 
-            self.print( " <-- " + newPacket.printJSON(self.service.showMeta))
             resp = newPacket.handler(self)
             if resp:
                 self.sendPacket(resp)
@@ -437,6 +442,10 @@ class PolyService:
         self.showMeta = False
         self.autoAck = True
         self.handlers = {}
+        self.silenceDict = {}
+
+        for packet in protocol.packets:
+            self.silenceDict[packet.name] = False
 
     def close(self):
         for iface in self.interfaces:
@@ -444,6 +453,26 @@ class PolyService:
 
     def addIface(self, connStr):
         self.interfaces.append(PolyIface(connStr, self))
+
+    def toggleAck(self):
+        if self.autoAck:
+            self.autoAck = False
+            self.print( "AutoAck turned OFF")
+        else:
+            self.autoAck = True
+            self.print( "AutoAck turned ON")
+
+    def toggleSilence(self, packetType):
+
+        if not packetType in self.silenceDict:
+            self.print( "Can not find: " + packetType)
+
+        if self.silenceDict[packetType]:
+            self.silenceDict[packetType] = False
+            self.print( "Un-Silencing: " + packetType)
+        else:
+            self.silenceDict[packetType] = True
+            self.print( "Silencing: " + packetType)
 
     def newPacket(self, type):
         packet = PolyPacket(self.protocol)
