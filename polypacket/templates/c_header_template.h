@@ -290,4 +290,4 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
 
 % endfor
 /*@brief Catch-All Handler for unhandled packets */
-HandlerStatus_e ${proto.prefix}_default_handler(${proto.prefix}_packet_t * ${proto.prefix}_packet);
+HandlerStatus_e ${proto.prefix}_default_handler(${proto.prefix}_packet_t * ${proto.prefix}_packet, ${proto.prefix}_packet_t * ${proto.prefix}_response);

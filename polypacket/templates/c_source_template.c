@@ -164,11 +164,13 @@ HandlerStatus_e ${proto.prefix}_service_dispatch(${proto.prefix}_packet_t* packe
     ${proto.prefix}_packet_build(response, ${proto.prefix.upper()}_PACKET_ACK);
   }
 
+
   //If the packet was not handled, throw it to the default handler
   if(${proto.prefix}_status == PACKET_NOT_HANDLED)
   {
-    ${proto.prefix}_status = ${proto.prefix}_default_handler(packet);
+    ${proto.prefix}_status = ${proto.prefix}_default_handler(packet, response);
   }
+
 
   return ${proto.prefix}_status;
 }
@@ -546,12 +548,14 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(
 %endif
 % endfor
 
+
 /**
-  *@brief catch-all handler for any packet not handled by its default handler
-  *@param metaPacket ptr to ${proto.prefix}_packet_t containing packet
+  *@brief catch-all handler for any packet not yet handled
+  *@param ${proto.prefix}_packet ptr to incoming message
+  *@param ${proto.prefix}_response ptr to response
   *@return handling ${proto.prefix}_status
   */
-__attribute__((weak)) HandlerStatus_e ${proto.prefix}_default_handler( ${proto.prefix}_packet_t * ${proto.prefix}_packet)
+__attribute__((weak)) HandlerStatus_e ${proto.prefix}_default_handler( ${proto.prefix}_packet_t * ${proto.prefix}_packet, ${proto.prefix}_packet_t* ${proto.prefix}_response)
 {
 
   /* NOTE : This function should not be modified, when the callback is needed,

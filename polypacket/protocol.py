@@ -429,6 +429,7 @@ class protocolDesc:
         self.xmlName =""
         self.utilName =""
         self.sims = {}
+        self.defaultResponse = ""
 
     def service(self):
         return self.prefix.upper() +'_SERVICE'
@@ -473,6 +474,7 @@ def addStandardPackets(protocol):
     icd = fieldDesc("icd", "uint32")
     icd.isRequired = True
     icd.setPrefix(protocol.prefix)
+    icd.desc = "CRC Hash of protocol description. This is used to verify endpoints are using the same protocol"
     ping.desc = "This message requests an Ack from a remote device to test connectivity"
     ping.response = ack
     ping.hasResponse = True
@@ -650,6 +652,12 @@ def parseYAMLField(protocol, fieldItem):
 
         newField.format = formatDict[format]
 
+    if 'req' in field:
+        newField.isRequired = field['req']
+
+    if 'required' in field:
+        newField.isRequired = field['required']
+
     if('desc' in field):
         newField.desc = field['desc']
 
@@ -688,6 +696,9 @@ def parseYAML(yamlFile):
     if "desc" in objProtocol:
         protocol.desc = objProtocol['desc']
 
+    if "defaultResponse" in objProtocol:
+        protocol.defaultResponse = objProtocol['defaultResponse']
+
     addStandardPackets(protocol)
 
     protocol.xmlName = os.path.basename(yamlFile)
@@ -725,6 +736,9 @@ def parseYAML(yamlFile):
 
         if('response' in packet):
             newPacket.requests[packet['response']] = 0
+        else:
+            if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name  :
+                newPacket.requests[protocol.defaultResponse] = 0
 
         #get all fields declared for packet
         if "fields" in packet:

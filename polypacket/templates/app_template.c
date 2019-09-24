@@ -187,9 +187,10 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
 /**
   *@brief catch-all handler for any packet not handled by its default handler
   *@param metaPacket ptr to ${proto.prefix}_packet_t containing packet
+  *@param ${proto.prefix}_response ptr to response
   *@return handling ${proto.prefix}_status
   */
-HandlerStatus_e ${proto.prefix}_default_handler( ${proto.prefix}_packet_t * ${proto.prefix}_packet)
+HandlerStatus_e ${proto.prefix}_default_handler( ${proto.prefix}_packet_t * ${proto.prefix}_packet, ${proto.prefix}_packet_t * ${proto.prefix}_response)
 {
 
 

@@ -107,7 +107,11 @@
   </tr>
   %for field in packet.fields:
   <tr>
+    %if field.isRequired:
+    <td width=""><b>${field.name}</b></td>
+    %else:
     <td width="">${field.name}</td>
+    %endif
     <td width="">  ${field.cType}\
       %if field.isArray:
         [${field.arrayLen}]\
