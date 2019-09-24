@@ -17,6 +17,7 @@ import random
 import threading
 import errno
 import socket
+import serial
 
 
 
@@ -53,6 +54,45 @@ def readVarSize(bytes):
             break
 
     return val, size
+
+class PolySerial (threading.Thread):
+    def __init__(self, iface, port, baud ):
+        threading.Thread.__init__(self)
+        self.iface = iface
+        self.port = port
+        self.baud = baud
+        self.serialPort = serial.Serial(
+        port = port,
+        baudrate=baud,
+        parity=serial.PARITY_NONE,
+        stopbits=serial.STOPBITS_ONE,
+        bytesize= serial.EIGHTBITS
+        )
+
+        try:
+            self.serialPort.open()
+            self.iface.print(self.iface.name + " Port Opened : " + port)
+        except Exception, e:
+            self.iface.print(self.iface.name + " Could not open port : " + port)
+
+
+    def __del__(self):
+        self.close()
+        threading.Thread.__del__(self)
+
+    def close(self):
+        self.serialPort.close()
+
+
+    def send(self, data):
+        self.serialPort.write(data)
+
+    def run(self):
+        while True:
+            if self.serialPort.inWaiting() > 0:
+                data = self.serialPort.read()
+                self.iface.feedEncodedBytes(data)
+
 
 class PolyUdp (threading.Thread):
     def __init__(self, iface, localPort ):
@@ -318,8 +358,13 @@ class PolyIface:
                 self.coms.connect('127.0.0.1', int(words[2]))
             if len(words) == 4:
                 self.coms.connect(words[2], int(words[3]))
+        elif words[0] == 'serial':
+            if len(words) == 2:
+                self.coms = PolySerial(self,words[1], 9600)
+            if len(words) == 3:
+                self.coms = PolySerial(self,words[1], words[2])
 
-            self.coms.start()
+        self.coms.start()
 
     def close(self):
         self.coms.close()
