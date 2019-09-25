@@ -239,6 +239,15 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 /*******************************************************************************
   Meta-Packet getters
 *******************************************************************************/
+
+/**
+  *@brief checks to see if field is present in packet
+  *@param packet ptr to packet to be packed
+  *@param field ptr to field desc
+  *@return true if field is present
+  */
+#define ${proto.prefix}_hasField(packet, field) poly_packet_has(&(packet)->mPacket, field)
+
 % for field in proto.fields:
   %if field.isArray:
 void ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val);

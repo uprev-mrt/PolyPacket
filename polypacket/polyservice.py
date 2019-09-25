@@ -156,7 +156,7 @@ class PolyField:
                 self.values[0] = val
             else:
                 self.len = 1
-                self.values[0] = int(val)
+                self.values[0] = int(val, 0)
 
 
     def get(self):
