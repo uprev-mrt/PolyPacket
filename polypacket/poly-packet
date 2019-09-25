@@ -156,6 +156,9 @@ def parseCommand(text):
 
     words = text.split()
 
+    if len(words) == 0:
+        return
+
     if words[0].lower() == 'connect':
         SERVICE.addIface(words[1])
         return 0

@@ -53,7 +53,7 @@ def readVarSize(bytes):
         if (tmp & 0x80) == 0:
             break
 
-    return val, size
+    return int(val), int(size)
 
 class PolySerial (threading.Thread):
     def __init__(self, iface, port, baud ):
@@ -174,21 +174,33 @@ class PolyField:
         idx =0
         if self.desc.isArray:
             self.len, idx = readVarSize(bytes)
-            self.len = self.len / self.desc.objSize
+            self.len = int(self.len / self.desc.objSize)
         else:
             if self.desc.isString:
                 self.len, idx = readVarSize(bytes)
             else:
                 self.len = 1
 
-        dataLen = self.len * self.desc.objSize
+        if self.len == 0:
+            if self.desc.isString:
+                self.values[0] =""
+            else:
+                self.values[0] = 0
+
+        dataLen = int(self.len * self.desc.objSize)
+
+        strFormat = "<" + str(self.len) + self.desc.pyFormat;
 
         try:
             if self.desc.isString:
-                self.values[0] = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+dataLen ])[0].decode("utf-8")
+                self.values[0] = struct.unpack(strFormat, bytes[idx:idx+dataLen ])[0].decode("utf-8")
             else:
-                self.values = struct.unpack("<" + str(self.len) + self.desc.pyFormat, bytes[idx:idx+dataLen])
+                self.values = struct.unpack(strFormat, bytes[idx:idx+dataLen])
         except:
+            print(strFormat)
+            print(idx)
+            print (dataLen)
+            print(len(bytes))
             print(" Error Parsing: " + self.desc.name+ '-->' + ''.join(' {:02x}'.format(x) for x in bytes[idx:idx+dataLen]))
         return idx + dataLen
 
@@ -213,7 +225,7 @@ class PolyField:
         json =""
         json += "\"" + self.desc.name +"\" : "
         if self.desc.isArray:
-            json+= "[" + ''.join(' {:02x}'.format(x) for x in self.values) + "]"
+            json+= "[" + ''.join(' 0x{:02x},'.format(x) for x in self.values) + "]"
         else:
             if self.desc.isString :
                 json+= "\"" + str(self.values[0]) +"\""
