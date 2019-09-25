@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
      name='polypacket',
-     version='1.0.13',
+     version='1.0.14',
      author="Jason Berger",
      author_email="JBerger@up-rev.com",
      description="A tool for building protocol services",

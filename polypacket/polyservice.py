@@ -365,6 +365,7 @@ class PolyIface:
         self.frameCount =0
         self.packetsIn = deque([])
         self.name = ""
+        self.lastToken = 0
 
         if not connStr == "":
             words = connStr.split(':')
@@ -417,9 +418,13 @@ class PolyIface:
             newPacket.parse(decoded)
 
             if not self.service.silenceDict[newPacket.desc.name]:
+                if (newPacket.token & 0x7FFF) != (self.lastToken & 0x7FFF):
+                    self.print("")
+
                 self.print( " <-- " + newPacket.printJSON(self.service.showMeta))
 
             resp = newPacket.handler(self)
+            self.lastToken = newPacket.token
             if resp:
                 self.sendPacket(resp)
             #self.packetsIn.append(newPacket)
@@ -436,10 +441,15 @@ class PolyIface:
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
+        if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
+            self.print("")
+
         self.print( " --> " + packet.printJSON(self.service.showMeta))
 
         if hasattr(self, 'coms'):
             self.coms.send(encoded)
+
+        self.lastToken = packet.token
 
         return encoded
 
