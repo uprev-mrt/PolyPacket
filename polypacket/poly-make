@@ -98,6 +98,7 @@ def init_args():
     parser.add_argument('-s', '--snippets', action='store_true', help='Adds helpful code snippets to files', default=False)
     parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
     parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
+    parser.add_argument('-c', '--cpp', action='store_true', help='use C++', default=False)
     parser.add_argument('-e', '--example', action='store_true', help='generates example protocol file', default=False)
 
 
@@ -161,8 +162,12 @@ def main():
             genUtility(protocol,inputFile, utilPath)
 
         if(path != ""):
-            buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
-            buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")
+            if args.cpp:
+                buildTemplate(protocol, 'templates/cpp_header_template.h', path+"/" + protocol.fileName+".h")
+                #buildTemplate(protocol, 'templates/cpp_source_template.c', path+"/" + protocol.fileName+".cpp")
+            else:
+                buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
+                buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")
 
             if(args.app):
                 buildTemplate(protocol,'templates/app_template.h', path+"/app_" + protocol.name.lower() +".h")

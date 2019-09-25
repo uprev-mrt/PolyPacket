@@ -165,6 +165,7 @@ class fieldDesc:
         if(self.type == 'string'):
             self.cppType = "string"
             self.isString = True
+            self.isArray = True
         else:
             if(self.isArray):
                 self.cppType = self.cppType +"*"

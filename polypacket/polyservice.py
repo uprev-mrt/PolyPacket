@@ -147,7 +147,7 @@ class PolyField:
 
     def set(self,val):
         self.isPresent = True
-        if self.desc.isArray:
+        if self.desc.isArray and not self.desc.isString:
             self.len = len(val)
             self.values = val
         else:
@@ -161,7 +161,7 @@ class PolyField:
 
     def get(self):
         if self.isPresent :
-            if self.desc.isArray :
+            if self.desc.isArray and not self.desc.isString :
                 return self.values
             else:
                 return self.values[0]
@@ -172,7 +172,7 @@ class PolyField:
         self.isPresent = True
         strFormat = "%s"+ self.desc.pyFormat
         idx =0
-        if self.desc.isArray:
+        if self.desc.isArray and not self.desc.isString:
             self.len, idx = readVarSize(bytes)
             self.len = int(self.len / self.desc.objSize)
         else:
@@ -210,7 +210,7 @@ class PolyField:
 
         byteArr += packVarSize(id)
 
-        if self.desc.isArray | self.desc.isString:
+        if self.desc.isArray :
             byteArr += packVarSize(self.len * self.desc.objSize)
 
 
@@ -224,7 +224,7 @@ class PolyField:
     def printJSON(self):
         json =""
         json += "\"" + self.desc.name +"\" : "
-        if self.desc.isArray:
+        if self.desc.isArray and not self.desc.isString:
             json+= "[" + ''.join(' 0x{:02x},'.format(x) for x in self.values) + "]"
         else:
             if self.desc.isString :

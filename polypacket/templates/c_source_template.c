@@ -295,6 +295,12 @@ HandlerStatus_e ${proto.prefix}_send(int iface, ${proto.prefix}_packet_t* packet
   return ${proto.prefix}_status;
 }
 
+
+void ${proto.prefix}_tick(uint32_t ms)
+{
+  poly_service_tick(&${proto.service()}, ms);
+}
+
 void ${proto.prefix}_auto_ack(bool enable)
 {
   ${proto.service()}.mAutoAck = enable;
@@ -434,21 +440,25 @@ HandlerStatus_e ${proto.prefix}_sendPing(int iface)
   *@brief sends ${packet.name} packet
   *@param iface indec of interface to send packet to
   %for field in packet.fields:
+  %if field.isRequired:
   %if field.isArray:
   *@param ${field.name} ${field.getParamType()} to ${field.name} field from
   %else:
   *@param ${field.name} value to set ${field.name} field to
+  %endif
   %endif
   %endfor
   *@return ${proto.prefix}_status send attempt
   */
 HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
   %for idx,field in enumerate(packet.fields):
+  %if field.isRequired:
 ,\
   %if field.isArray:
  const ${field.getParamType()} ${field.name}\
   %else:
  ${field.getParamType()} ${field.name}\
+  %endif
   %endif
   %endfor
 )
@@ -460,7 +470,9 @@ HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
 
   //set fields
   %for field in packet.fields:
+  %if field.isRequired:
   ${proto.prefix}_set${field.camel()}(&packet, ${field.name});
+  %endif
   %endfor
 
   ${proto.prefix}_status = ${proto.prefix}_send(iface,&packet); //send packet
@@ -522,15 +534,19 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(
 {
   /*  Get Required Fields in packet */
 % for field in packet.fields:
+%if field.isRequired:
   //${field.getDeclaration()};  //${field.desc}
+%endif
 %endfor
 
 % for field in packet.fields:
+%if field.isRequired:
   %if field.isArray:
   //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name});
   %else:
   //${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});
   %endif
+%endif
 % endfor
 %if packet.hasResponse:
   /*    Set required Fields in response  */

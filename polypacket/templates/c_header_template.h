@@ -162,6 +162,13 @@ void ${proto.prefix}_service_feed_json(int iface, const char* msg, int len);
 HandlerStatus_e ${proto.prefix}_send( int iface, ${proto.prefix}_packet_t* packet);
 
 /**
+  *@brief tells the service time has passed so it can track packets timeouts/retries on the spool
+  *@param ms number of milliseconds passed
+  *@note this only sets flags/statuses. Nothing is handled until the next call to process the service. So it is fine to call this from a systick handler
+  */
+void ${proto.prefix}_tick(uint32_t ms);
+
+/**
   *@brief enables/disables the auto acknowledgement function of the service
   *@param enable true enable auto acks, false disables them
   */
@@ -225,6 +232,13 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
   */
 #define ${proto.prefix}_pack(packet, buf) poly_packet_pack(&(packet)->mPacket, buf)
 
+/**
+  *@brief gets the descriptor for the packet
+  *@param packet ptr to packet to be checked
+  */
+#define ${proto.prefix}_getDesc(packet) (&(packet)->mPacket.mDesc)
+
+
 /*******************************************************************************
   Meta-Packet setters
 *******************************************************************************/
@@ -274,11 +288,13 @@ HandlerStatus_e ${proto.prefix}_sendPing(int iface);
 %if not packet.standard:
 HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
   %for idx,field in enumerate(packet.fields):
+  %if field.isRequired:
 ,\
   %if field.isArray:
  const ${field.getParamType()} ${field.name}\
   %else:
  ${field.getParamType()} ${field.name}\
+  %endif
   %endif
   %endfor
 );
