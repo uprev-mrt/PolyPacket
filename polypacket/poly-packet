@@ -160,7 +160,7 @@ def parseCommand(text):
         return
 
     if words[0].lower() == 'connect':
-        SERVICE.addIface(words[1])
+        SERVICE.setIface(words[1])
         return 0
 
     if words[0].lower() == 'ack':

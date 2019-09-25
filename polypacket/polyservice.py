@@ -55,6 +55,7 @@ def readVarSize(bytes):
 
     return int(val), int(size)
 
+
 class PolySerial (threading.Thread):
     def __init__(self, iface, port, baud ):
         threading.Thread.__init__(self)
@@ -365,25 +366,27 @@ class PolyIface:
         self.packetsIn = deque([])
         self.name = ""
 
-        words = connStr.split(':')
+        if not connStr == "":
+            words = connStr.split(':')
 
-        if words[0] == 'udp':
-            self.coms = PolyUdp(self, int(words[1]))
-            self.name = "UDP"
-            if len(words) == 3:
-                self.coms.connect('127.0.0.1', int(words[2]))
-            if len(words) == 4:
-                self.coms.connect(words[2], int(words[3]))
-        elif words[0] == 'serial':
-            if len(words) == 2:
-                self.coms = PolySerial(self,words[1], 9600)
-            if len(words) == 3:
-                self.coms = PolySerial(self,words[1], words[2])
+            if words[0] == 'udp':
+                self.coms = PolyUdp(self, int(words[1]))
+                self.name = "UDP"
+                if len(words) == 3:
+                    self.coms.connect('127.0.0.1', int(words[2]))
+                if len(words) == 4:
+                    self.coms.connect(words[2], int(words[3]))
+            elif words[0] == 'serial':
+                if len(words) == 2:
+                    self.coms = PolySerial(self,words[1], 9600)
+                if len(words) == 3:
+                    self.coms = PolySerial(self,words[1], words[2])
 
-        self.coms.start()
+            self.coms.start()
 
     def close(self):
-        self.coms.close()
+        if hasattr(self, 'coms'):
+            self.coms.close()
 
     def print(self, text):
         if not self.service.print == '':
@@ -424,7 +427,7 @@ class PolyIface:
     def sendPacket(self, packet):
 
         if packet.desc.name == "Ping":
-            packet.setField('icd', self.service.protocol.crc)
+            packet.setField('icd', str(self.service.protocol.crc))
 
         raw = packet.pack()
 
@@ -435,7 +438,8 @@ class PolyIface:
 
         self.print( " --> " + packet.printJSON(self.service.showMeta))
 
-        self.coms.send(encoded)
+        if hasattr(self, 'coms'):
+            self.coms.send(encoded)
 
         return encoded
 
@@ -459,12 +463,18 @@ class PolyService:
         for packet in protocol.packets:
             self.silenceDict[packet.name] = False
 
+        self.addIface("") #add dummy interface that just prints
+
     def close(self):
         for iface in self.interfaces:
             iface.close()
 
     def addIface(self, connStr):
         self.interfaces.append(PolyIface(connStr, self))
+
+    def setIface(self,connStr):
+        self.interfaces[0].close()
+        self.interfaces[0] = PolyIface(connStr, self)
 
     def toggleAck(self):
         if self.autoAck:
