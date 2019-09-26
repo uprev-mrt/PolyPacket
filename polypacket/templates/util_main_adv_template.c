@@ -148,14 +148,14 @@ void input_handler(char* input)
 %if not packet.standard:
   else if(!strcasecmp(messageType, "${packet.name}"))       //${packet.desc}
   {
-%if len(packet.fields) >0:
+%if len(packet.requiredFields) >0:
     if(messageFields != NULL)
       fieldCount = sscanf(messageFields, "\
-%for field in packet.fields:
+%for field in packet.requiredFields:
 ${field.getFormat()} \
 %endfor
 " \
-%for field in packet.fields:
+%for field in packet.requiredFields:
 %if field.isArray:
 , field_${field.name} \
 %else:
@@ -164,10 +164,10 @@ ${field.getFormat()} \
 %endfor
 );
 %endif
-    if(fieldCount == ${packet.globalName}->mFieldCount)
+    if(fieldCount == ${packet.requiredFieldCount})
     {
       ${proto.prefix}_send${packet.camel()}(0\
-  %for idx,field in enumerate(packet.fields):
+  %for idx,field in enumerate(packet.requiredFields):
 , field_${field.name} \
   %endfor
 );
@@ -214,11 +214,11 @@ void print_usage(const char* messageType)
   if((messageType == NULL) || (!strcasecmp(messageType, "${packet.name}")))     //${packet.desc}
   {
     printf("${packet.name}  \
-    %for field in packet.fields:
+    %for field in packet.requiredFields:
     <${field.name}> \
     %endfor
     \n"
-  %for field in packet.fields:
+  %for field in packet.requiredFields:
            "\t${field.name} [${field.cType}] - ${field.desc} \n"
   %endfor
            );

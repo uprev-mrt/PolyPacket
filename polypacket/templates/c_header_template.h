@@ -82,7 +82,7 @@ extern poly_field_desc_t* ${field.globalName};
  *@brief The main type dealt with by the user
  */
 
-typedef meta_packet_t ${proto.prefix}_packet_t;
+typedef poly_packet_t ${proto.prefix}_packet_t;
 typedef ${proto.prefix}_packet_t ${proto.prefix}_struct_t;
 
 
@@ -207,7 +207,7 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
   *@param buf buffer to store string
   *@return length of string
   */
-#define ${proto.prefix}_print_json(packet,buf) poly_packet_print_json(&(packet)->mPacket, buf, false)
+#define ${proto.prefix}_print_json(packet,buf) poly_packet_print_json((packet), buf, false)
 
 /**
   *@brief parses packet from a buffer of data
@@ -215,14 +215,14 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
   *@param buf buffer to parse
   *@return status of parse attempt
   */
-#define ${proto.prefix}_parse(packet,buf,len) poly_packet_parse_buffer(&(packet)->mPacket, buf, len)
+#define ${proto.prefix}_parse(packet,buf,len) poly_packet_parse_buffer((packet), buf, len)
 
 /**
   *@brief Copies all fields present in both packets from src to dst
   *@param dst ptr to packet to copy to
   *@param src ptr to packet to copy from
   */
-#define ${proto.prefix}_packet_copy(dst,src) poly_packet_copy(&(dst)->mPacket,&(src)->mPacket )
+#define ${proto.prefix}_packet_copy(dst,src) poly_packet_copy((dst),(src) )
 
 /**
   *@brief packs packet into a byte array
@@ -230,13 +230,13 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
   *@param buf buffer to store data
   *@return length of packed data
   */
-#define ${proto.prefix}_pack(packet, buf) poly_packet_pack(&(packet)->mPacket, buf)
+#define ${proto.prefix}_pack(packet, buf) poly_packet_pack((packet), buf)
 
 /**
   *@brief gets the descriptor for the packet
   *@param packet ptr to packet to be checked
   */
-#define ${proto.prefix}_getDesc(packet) (&(packet)->mPacket.mDesc)
+#define ${proto.prefix}_getDesc(packet) ((packet).mDesc)
 
 
 /*******************************************************************************
@@ -260,7 +260,7 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
   *@param field ptr to field desc
   *@return true if field is present
   */
-#define ${proto.prefix}_hasField(packet, field) poly_packet_has(&(packet)->mPacket, field)
+#define ${proto.prefix}_hasField(packet, field) poly_packet_has((packet), field)
 
 % for field in proto.fields:
   %if field.isArray:

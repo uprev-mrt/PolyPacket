@@ -131,7 +131,7 @@ HandlerStatus_e ${proto.prefix}_service_dispatch(${proto.prefix}_packet_t* packe
   HandlerStatus_e ${proto.prefix}_status;
 
   //Dispatch packet
-  switch(packet->mPacket.mDesc->mTypeId)
+  switch(packet->mDesc->mTypeId)
   {
     case ${proto.prefix.upper()}_PACKET_PING_ID:
       ${proto.prefix}_packet_build(response, ${proto.prefix.upper()}_PACKET_ACK);
@@ -159,7 +159,7 @@ HandlerStatus_e ${proto.prefix}_service_dispatch(${proto.prefix}_packet_t* packe
   }
 
   //If this packet doe not have an explicit response and AutoAck is enabled, create an ack packet
-  if(( ${proto.prefix.upper()}_SERVICE.mAutoAck ) && (!response->mBuilt) && (!(packet->mPacket.mHeader.mToken & POLY_ACK_FLAG)))
+  if(( ${proto.prefix.upper()}_SERVICE.mAutoAck ) & (!response->mBuilt) && (!(packet->mHeader.mToken & POLY_ACK_FLAG)))
   {
     ${proto.prefix}_packet_build(response, ${proto.prefix.upper()}_PACKET_ACK);
   }
@@ -191,7 +191,7 @@ void ${proto.prefix}_service_process()
   response.mSpooled = false;
   response.mBuilt = false;
 
-  if(poly_service_try_parse(&${proto.service()}, &packet.mPacket) == PACKET_VALID)
+  if(poly_service_try_parse(&${proto.service()}, &packet) == PACKET_VALID)
   {
     //if we get here, then the inner packet was built by the parser
     packet.mBuilt = true;
@@ -202,9 +202,9 @@ void ${proto.prefix}_service_process()
     if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) )
     {
       //set response token with ack flag
-			response.mPacket.mHeader.mToken = packet.mPacket.mHeader.mToken | POLY_ACK_FLAG;
+			response.mHeader.mToken = packet.mHeader.mToken | POLY_ACK_FLAG;
 
-      ${proto.prefix}_send(packet.mPacket.mInterface , &response);
+      ${proto.prefix}_send(packet.mInterface , &response);
     }
 
     //Clean the packets
@@ -246,7 +246,7 @@ HandlerStatus_e ${proto.prefix}_handle_json(const char* req, int len, char* resp
   response.mBuilt = false;
 
 
-  if(poly_service_parse_json(&${proto.service()}, &packet.mPacket, req, len) == PACKET_VALID)
+  if(poly_service_parse_json(&${proto.service()}, &packet, req, len) == PACKET_VALID)
   {
     //if we get here, then the inner packet was built by the parser
     packet.mBuilt = true;
@@ -258,8 +258,8 @@ HandlerStatus_e ${proto.prefix}_handle_json(const char* req, int len, char* resp
     if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) )
     {
       //set response token with ack flag
-			response.mPacket.mHeader.mToken = packet.mPacket.mHeader.mToken | POLY_ACK_FLAG;
-      poly_packet_print_json(&response.mPacket, resp, false);
+			response.mHeader.mToken = packet.mHeader.mToken | POLY_ACK_FLAG;
+      poly_packet_print_json(&response, resp, false);
     }
 
     //Clean the packets
@@ -279,20 +279,6 @@ HandlerStatus_e ${proto.prefix}_handle_json(const char* req, int len, char* resp
 void ${proto.prefix}_service_feed_json(int iface, const char* msg, int len)
 {
   poly_service_feed_json_msg(&${proto.service()},iface,msg,len);
-}
-
-HandlerStatus_e ${proto.prefix}_send(int iface, ${proto.prefix}_packet_t* packet)
-{
-  HandlerStatus_e ${proto.prefix}_status;
-
-  ${proto.prefix}_status = poly_service_spool(&${proto.service()}, iface, &packet->mPacket);
-
-  if(${proto.prefix}_status == PACKET_SPOOLED)
-  {
-    packet->mSpooled = true;
-  }
-
-  return ${proto.prefix}_status;
 }
 
 
@@ -328,7 +314,7 @@ void ${proto.prefix}_disable_tx(int iface)
 void ${proto.prefix}_packet_build(${proto.prefix}_packet_t* packet, poly_packet_desc_t* desc)
 {
   //create new allocated packet
-  poly_packet_build(&packet->mPacket, desc, true);
+  poly_packet_build(packet, desc, true);
   packet->mBuilt = true;
   packet->mSpooled = false;
 }
@@ -344,11 +330,24 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet)
   //If the packet has been spooled, the spool is responsible for it now
   if(packet->mBuilt && (!packet->mSpooled))
   {
-    poly_packet_clean(&packet->mPacket);
+    poly_packet_clean(packet);
   }
 
 }
 
+HandlerStatus_e ${proto.prefix}_send(int iface, ${proto.prefix}_packet_t* packet)
+{
+  HandlerStatus_e ${proto.prefix}_status;
+
+  ${proto.prefix}_status = poly_service_spool(&${proto.service()}, iface, packet);
+
+  if(${proto.prefix}_status == PACKET_SPOOLED)
+  {
+    packet->mSpooled = true;
+  }
+
+  return ${proto.prefix}_status;
+}
 
 
 /*******************************************************************************
@@ -375,9 +374,9 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 %endif
 {
 %if field.isArray:
-  poly_packet_set_field(&packet->mPacket, ${field.globalName}, val);
+  poly_packet_set_field(packet, ${field.globalName}, val);
 % else:
-  poly_packet_set_field(&packet->mPacket, ${field.globalName}, &val);
+  poly_packet_set_field(packet, ${field.globalName}, &val);
 % endif
 }
 
@@ -404,13 +403,13 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 %if field.isArray:
 void ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val)
 {
-  poly_packet_get_field(&packet->mPacket, ${field.globalName}, val);
+  poly_packet_get_field(packet, ${field.globalName}, val);
 }
 % else:
 ${field.getParamType()} ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet)
 {
   ${field.getParamType()} val;
-  poly_packet_get_field(&packet->mPacket, ${field.globalName}, &val);
+  poly_packet_get_field(packet, ${field.globalName}, &val);
   return val;
 }
 % endif

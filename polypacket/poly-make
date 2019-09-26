@@ -81,7 +81,7 @@ def genUtility(protocol, inputFile, path):
     buildTemplate(protocol, 'templates/c_source_template.c', libPath + protocol.fileName+".c")
     buildTemplate(protocol, 'templates/app_template.h', srcPath+"app_" + protocol.name.lower() +".h")
     buildTemplate(protocol, 'templates/app_template.c', srcPath+"app_" + protocol.name.lower()+".c")
-    buildTemplate(protocol, 'templates/util_main_template.c', srcPath+"main.c")
+    buildTemplate(protocol, 'templates/util_main_adv_template.c', srcPath+"main.c")
     buildTemplate(protocol, 'templates/doc_template.md', docPath + protocol.name+"_ICD.md")
     buildTemplate(protocol, 'templates/doc_template.html', docPath + protocol.name+"_ICD.html")
     protocol.genUtility = False #set this back in case someone does this out of order

@@ -231,6 +231,8 @@ class packetDesc:
         self.structName = name.lower() + '_packet_t'
         self.hasResponse = False
         self.protocol = protocol
+        self.requiredFields = []
+        self.requiredFieldCount = 0
 
     def camel(self):
         return self.name[:1].capitalize() + self.name[1:]
@@ -274,6 +276,11 @@ class packetDesc:
         if len(self.requests) > 0:
             self.hasResponse = True;
             self.response = self.protocol.getPacket(next(iter(self.requests.keys())))
+
+        for field in self.fields:
+            if field.isRequired:
+                self.requiredFields.append(field)
+                self.requiredFieldCount += 1
 
     def tableSize(self):
         sum =0;
