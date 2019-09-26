@@ -1,5 +1,5 @@
 # ${proto.name} ICD
-* Generated: ${proto.genTime}<br/>
+* Generated with [PolyPacket](https://github.com/up-rev/PolyPacket/wiki) on ${proto.genTime} <br/>
 * CRC: ${proto.hash}
 * Transport Encoding: (COBS) [Consistent Overhead ByteStuffing](https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing)
 
