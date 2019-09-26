@@ -442,6 +442,9 @@ class protocolDesc:
     def service(self):
         return self.prefix.upper() +'_SERVICE'
 
+    def camelPrefix(self):
+        return self.prefix[:1].capitalize() + self.prefix[1:]
+
     def addField(self,field):
         field.id = self.fieldId
         field.protocol = self

@@ -163,8 +163,8 @@ def main():
 
         if(path != ""):
             if args.cpp:
-                buildTemplate(protocol, 'templates/cpp_header_template.h', path+"/" + protocol.fileName+".h")
-                #buildTemplate(protocol, 'templates/cpp_source_template.c', path+"/" + protocol.fileName+".cpp")
+                buildTemplate(protocol, 'templates/cpp_header_template.hpp', path+"/" + protocol.fileName+".hpp")
+                buildTemplate(protocol, 'templates/cpp_source_template.c', path+"/" + protocol.fileName+".cpp")
             else:
                 buildTemplate(protocol, 'templates/c_header_template.h', path+"/" + protocol.fileName+".h")
                 buildTemplate(protocol, 'templates/c_source_template.c', path+"/" + protocol.fileName+".c")

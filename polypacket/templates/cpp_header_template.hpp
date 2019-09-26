@@ -81,30 +81,106 @@ extern poly_packet_desc_t* ${struct.globalName};
 extern poly_field_desc_t* ${field.globalName};
 % endfor
 
-/*
- *@brief The main type dealt with by the user
- */
 
-typedef meta_packet_t ${proto.prefix}_packet_t;
-typedef ${proto.prefix}_packet_t ${proto.prefix}_struct_t;
+class ${proto.camelPrefix()}Packet {
+  public:
+    /**
+      *@brief initializes a new {proto.prefix}_packet_t
+      *@param desc ptr to packet descriptor to model packet from
+      */
+    ${proto.camelPrefix()}Packet(poly_packet_desc_t* desc);
 
+    /**
+      *@brief recrusively cleans packet and its contents if it still has ownership
+      *@param packet packet to clean
+      */
+    ~${proto.camelPrefix()}Packet();
+
+
+    /**
+      *@brief converts packet to json
+      *@param packet ptr to packet to convert
+      *@param buf buffer to store string
+      *@return length of string
+      */
+    int printJSON(packet,buf) poly_packet_print_json(&(packet)->mPacket, buf, false)
+
+    /**
+      *@brief parses packet from a buffer of data
+      *@param packet ptr to packet to be built
+      *@param buf buffer to parse
+      *@return status of parse attempt
+      */
+     ${proto.prefix}_parse(packet,buf,len) poly_packet_parse_buffer(&(packet)->mPacket, buf, len)
+
+    /**
+      *@brief Copies all fields present in both packets from src to dst
+      *@param dst ptr to packet to copy to
+      *@param src ptr to packet to copy from
+      */
+    void copyFrom(${proto.prefix}Packet& src); // poly_packet_copy(&(dst)->mPacket,&(src)->mPacket )
+
+    /**
+      *@brief packs packet into a byte array
+      *@param packet ptr to packet to be packed
+      *@param buf buffer to store data
+      *@return length of packed data
+      */
+    int pack(uint8_t* buf); // poly_packet_pack(&(packet)->mPacket, buf)
+
+    /**
+      *@brief gets the descriptor for the packet
+      *@param packet ptr to packet to be checked
+      */
+    poly_packet_desc_t* desc() {return mPacket.mDesc;} // (&(packet)->mPacket.mDesc);
+
+    /**
+      *@brief checks to see if field is present in packet
+      *@param packet ptr to packet to be packed
+      *@param field ptr to field desc
+      *@return true if field is present
+      */
+    bool hasField(poly_field_desc_t* field) {  return poly_packet_has(mPacket, field);}
+
+    /*******************************************************************************
+    Meta-Packet setters/Getters
+    *******************************************************************************/
+    % for field in proto.fields:
+    %if field.isArray:
+    void set${field.camel()}(const ${field.getParamType()} val);
+    int get${field.camel()}(${field.getParamType()} val);
+    % else:
+    void set${field.camel()}(${field.getParamType()} val);
+    ${field.getParamType()} get${field.camel()}();
+    % endif
+    % endfor
+
+  private:
+    poly_packet_t mPacket;
+#ifdef POLY_PACKET_EASY_DEBUG
+    % for field in proto.fields:
+    ${field.getParamType()} m${field.camel()};
+    % endfor
+#endif
+
+};
 
 /*******************************************************************************
   Service Functions
 *******************************************************************************/
 
-class ${proto.prefix}Service {
+class ${proto.camelPrefix()}Service {
   public:
     /**
       *@brief Constructor for protocol service
       *@param ifaces number of interfaces to use
       */
-    ${proto.prefix}Service(int interfaceCount);
+    ${proto.camelPrefix()}Service(int interfaceCount);
 
     /**
       *@brief Destructor for protocol service
       */
-    ~${proto.prefix}Service();
+    ~${proto.camelPrefix()}Service();
 
     /**
       *@brief processes data in buffers
@@ -174,6 +250,12 @@ class ${proto.prefix}Service {
   private:
 
     /**
+      *@brief registers the field/packet descriptors
+      *@note needs to only be called once
+      */
+    static void buildDescriptors();
+
+    /**
       *@brief handles packets and dispatches to handler
       *@param req incoming message
       *@param resp response to message
@@ -181,99 +263,21 @@ class ${proto.prefix}Service {
       */
     HandlerStatus_e dispatch(${proto.prefix}_packet_t* req, ${proto.prefix}_packet_t* resp);
 
-};
-
-class ${proto.prefix}Packet {
-  public:
-    /**
-      *@brief initializes a new {proto.prefix}_packet_t
-      *@param desc ptr to packet descriptor to model packet from
-      */
-    ${proto.prefix}Packet(poly_packet_desc_t* desc);
-
-    /**
-      *@brief recrusively cleans packet and its contents if it still has ownership
-      *@param packet packet to clean
-      */
-    ~${proto.prefix}Packet();
-
-    /**
-      *@brief converts packet to json
-      *@param packet ptr to packet to convert
-      *@param buf buffer to store string
-      *@return length of string
-      */
-    int printJSON(packet,buf) poly_packet_print_json(&(packet)->mPacket, buf, false)
-
-    /**
-      *@brief parses packet from a buffer of data
-      *@param packet ptr to packet to be built
-      *@param buf buffer to parse
-      *@return status of parse attempt
-      */
-     ${proto.prefix}_parse(packet,buf,len) poly_packet_parse_buffer(&(packet)->mPacket, buf, len)
-
-    /**
-      *@brief Copies all fields present in both packets from src to dst
-      *@param dst ptr to packet to copy to
-      *@param src ptr to packet to copy from
-      */
-    void copyFrom(${proto.prefix}Packet& src); // poly_packet_copy(&(dst)->mPacket,&(src)->mPacket )
-
-    /**
-      *@brief packs packet into a byte array
-      *@param packet ptr to packet to be packed
-      *@param buf buffer to store data
-      *@return length of packed data
-      */
-    int pack(uint8_t* buf); // poly_packet_pack(&(packet)->mPacket, buf)
-
-    /**
-      *@brief gets the descriptor for the packet
-      *@param packet ptr to packet to be checked
-      */
-    poly_packet_desc_t* desc(packet); // (&(packet)->mPacket.mDesc);
-
-    /**
-      *@brief checks to see if field is present in packet
-      *@param packet ptr to packet to be packed
-      *@param field ptr to field desc
-      *@return true if field is present
-      */
-    bool hasField(poly_field_desc_t* field) {  return poly_packet_has(mPacket, field);}
     /*******************************************************************************
-    Meta-Packet setters/Getters
+      Packet Handlers
     *******************************************************************************/
-    % for field in proto.fields:
-    %if field.isArray:
-    void ${field.camel()}(const ${field.getParamType()} val);
-    int ${proto.prefix}_get${field.camel()}(${field.getParamType()} val);
-    % else:
-    void ${field.camel()}(${field.getParamType()} val);
-    ${field.getParamType()} ${proto.prefix}_get${field.camel()}();
-    % endif
-    % endfor
+    % for packet in proto.packets:
+    %if packet.hasResponse:
+    /*@brief Handler for ${packet.name} packets */
+    HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
+    %else:
+    /*@brief Handler for ${packet.name} packets */
+    HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.camelPrefix()}Request);
+    %endif
 
-  private:
-
-    % for field in proto.fields:
-    ${field.getParamType()} m${field.camel()};
     % endfor
+    /*@brief Catch-All Handler for unhandled packets */
+    HandlerStatus_e defaultHandler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
+
 
 };
-
-/*******************************************************************************
-  Packet Handlers
-*******************************************************************************/
-% for packet in proto.packets:
-%if packet.hasResponse:
-/*@brief Handler for ${packet.name} packets */
-HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}Packet& ${proto.prefix}Request, ${proto.prefix}Packet& ${proto.prefix}Response );
-%else:
-/*@brief Handler for ${packet.name} packets */
-HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}Packet& ${proto.prefix}Request);
-%endif
-
-% endfor
-/*@brief Catch-All Handler for unhandled packets */
-HandlerStatus_e ${proto.prefix}_default_handler(${proto.prefix}_packet_t * ${proto.prefix}Request, ${proto.prefix}_packet_t * ${proto.prefix}Response);
