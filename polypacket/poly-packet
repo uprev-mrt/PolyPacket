@@ -138,8 +138,14 @@ def init_args():
     global parser
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
-    parser.add_argument('-t', '--test', action='store_true', help='Runs test on protocol', default=False)
     parser.add_argument('-c', '--command', nargs='+', help='Commands to execute on start, seperate with ;', default="")
+
+
+def saveBufferToFile(fileName):
+    file = open(fileName, "w")
+    file.write(outputField.text)
+    file.close()
+    printToConsole(" Log saved as: " + fileName)
 
 def printToConsole( text):
     global outputField
@@ -157,10 +163,15 @@ def parseCommand(text):
     words = text.split()
 
     if len(words) == 0:
+        printToConsole("")
         return
 
     if words[0].lower() == 'connect':
         SERVICE.setIface(words[1])
+        return 0
+
+    if words[0].lower() == 'savelog':
+        saveBufferToFile(words[1])
         return 0
 
     if words[0].lower() == 'ack':
@@ -213,9 +224,6 @@ def run():
 
         SERVICE = PolyService(PROTOCOL)
         SERVICE.print = printToConsole
-        if args.test:
-            testService(SERVICE)
-
 
         PROTOCOL.hash = fileHash
         PROTOCOL.crc = fileCrc
@@ -227,6 +235,7 @@ def run():
 
     packetNames.append('connect')
     packetNames.append('silence')
+    packetNames.append('saveLog')
 
     packet_completer = WordCompleter(packetNames,ignore_case=True)
 
@@ -251,23 +260,6 @@ def run():
 
 
     application.run()
-
-
-def testService(service):
-
-    service.addIface("")
-    newPacket = service.newPacket('Data')
-    newPacket.setField('sensorA', 123)
-    newPacket.setField('sensorName', "testName")
-
-    #print(newPacket.printJSON())
-
-    test = service.interfaces[0].sendPacket(newPacket)
-
-
-    service.interfaces[0].feedEncodedBytes(test)
-
-    #exit()
 
 if __name__ == '__main__':
     run()

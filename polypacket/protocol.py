@@ -804,10 +804,12 @@ def parseYAML(yamlFile):
         newStruct.desc = desc
 
         protocol.addStruct(newStruct)
-    for simItem in objProtocol['sims']:
-        name = list(simItem.keys())[0]
-        sim = list(simItem.values())[0]
-        protocol.sims[name] = simulator(name,sim)
+
+    if 'sims' in  objProtocol: #experimental
+        for simItem in objProtocol['sims']:
+            name = list(simItem.keys())[0]
+            sim = list(simItem.values())[0]
+            protocol.sims[name] = simulator(name,sim)
 
     for packet in protocol.packets:
         for request in packet.requests:
