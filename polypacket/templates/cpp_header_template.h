@@ -1,5 +1,5 @@
 /**
-  *@file ${proto.fileName}.h
+  *@file ${proto.cppFileName}.h
   *@brief generated code for ${proto.name} packet service
   *@author make_protocol.py
   *@date ${proto.genTime}
@@ -96,6 +96,11 @@ class ${proto.camelPrefix()}Packet {
       */
     ~${proto.camelPrefix()}Packet();
 
+    /**
+      *@brief builds a new ${proto.camelPrefix()}Packet
+      *@param desc ptr to packet descriptor to model packet from
+      */
+    void build(poly_packet_desc_t* desc);
 
     /**
       *@brief converts packet to json
@@ -103,7 +108,7 @@ class ${proto.camelPrefix()}Packet {
       *@param buf buffer to store string
       *@return length of string
       */
-    int printJSON(packet,buf) poly_packet_print_json(&(packet)->mPacket, buf, false)
+    int printJSON( char * buf) {return poly_packet_print_json(&mPacket, buf, false); }
 
     /**
       *@brief parses packet from a buffer of data
@@ -111,14 +116,14 @@ class ${proto.camelPrefix()}Packet {
       *@param buf buffer to parse
       *@return status of parse attempt
       */
-     ${proto.prefix}_parse(packet,buf,len) poly_packet_parse_buffer(&(packet)->mPacket, buf, len)
+     ParseStatus_e parse(const uint8_t * buf, int len) { return poly_packet_parse_buffer(&mPacket, buf, len); }
 
     /**
       *@brief Copies all fields present in both packets from src to dst
       *@param dst ptr to packet to copy to
       *@param src ptr to packet to copy from
       */
-    void copyFrom(${proto.prefix}Packet& src); // poly_packet_copy(&(dst)->mPacket,&(src)->mPacket )
+    void copyFrom(${proto.camelPrefix()}Packet& src);
 
     /**
       *@brief packs packet into a byte array
@@ -126,13 +131,13 @@ class ${proto.camelPrefix()}Packet {
       *@param buf buffer to store data
       *@return length of packed data
       */
-    int pack(uint8_t* buf); // poly_packet_pack(&(packet)->mPacket, buf)
+    int pack(uint8_t* buf){ return poly_packet_pack(&mPacket, buf);}
 
     /**
       *@brief gets the descriptor for the packet
       *@param packet ptr to packet to be checked
       */
-    poly_packet_desc_t* desc() {return mPacket.mDesc;} // (&(packet)->mPacket.mDesc);
+    const poly_packet_desc_t* desc() {return mPacket.mDesc;}
 
     /**
       *@brief checks to see if field is present in packet
@@ -140,7 +145,7 @@ class ${proto.camelPrefix()}Packet {
       *@param field ptr to field desc
       *@return true if field is present
       */
-    bool hasField(poly_field_desc_t* field) {  return poly_packet_has(mPacket, field);}
+    bool hasField(poly_field_desc_t* field) {  return poly_packet_has(&mPacket, field);}
 
     /*******************************************************************************
     Meta-Packet setters/Getters
@@ -155,8 +160,10 @@ class ${proto.camelPrefix()}Packet {
     % endif
     % endfor
 
-  private:
     poly_packet_t mPacket;
+
+  private:
+
 #ifdef POLY_PACKET_EASY_DEBUG
     % for field in proto.fields:
     ${field.getParamType()} m${field.camel()};
@@ -169,18 +176,32 @@ class ${proto.camelPrefix()}Packet {
   Service Functions
 *******************************************************************************/
 
-class ${proto.camelPrefix()}Service {
+class ${proto.cppFileName} {
   public:
+    static bool mDescriptorsBuilt;
+
     /**
       *@brief Constructor for protocol service
       *@param ifaces number of interfaces to use
       */
-    ${proto.camelPrefix()}Service(int interfaceCount);
+    ${proto.cppFileName}(int interfaceCount);
 
     /**
       *@brief Destructor for protocol service
       */
-    ~${proto.camelPrefix()}Service();
+    ~${proto.cppFileName}();
+
+    /**
+      *@brief registers the field/packet descriptors
+      *@note needs to only be called once
+      */
+    static void buildDescriptors();
+
+    /**
+      *@brief registers the field/packet descriptors
+      *@note needs to only be called once
+      */
+    static void tearDown();
 
     /**
       *@brief processes data in buffers
@@ -231,7 +252,7 @@ class ${proto.camelPrefix()}Service {
       *@param packet packet to be sent
       *@param iface index of interface to send on
       */
-    HandlerStatus_e send( int iface, ${proto.prefix}_packet_t* packet);
+    HandlerStatus_e send( int iface, ${proto.camelPrefix()}Packet& packet);
 
     /**
       *@brief enables/disables the auto acknowledgement function of the service
@@ -247,13 +268,7 @@ class ${proto.camelPrefix()}Service {
     void disableTx(int iface);
 
 
-  private:
-
-    /**
-      *@brief registers the field/packet descriptors
-      *@note needs to only be called once
-      */
-    static void buildDescriptors();
+  protected:
 
     /**
       *@brief handles packets and dispatches to handler
@@ -261,7 +276,7 @@ class ${proto.camelPrefix()}Service {
       *@param resp response to message
       *@param number of bytes
       */
-    HandlerStatus_e dispatch(${proto.prefix}_packet_t* req, ${proto.prefix}_packet_t* resp);
+    virtual HandlerStatus_e dispatch(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response);
 
     /*******************************************************************************
       Packet Handlers
@@ -269,15 +284,17 @@ class ${proto.camelPrefix()}Service {
     % for packet in proto.packets:
     %if packet.hasResponse:
     /*@brief Handler for ${packet.name} packets */
-    HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
+    virtual HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
     %else:
     /*@brief Handler for ${packet.name} packets */
-    HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.camelPrefix()}Request);
+    virtual HandlerStatus_e ${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.camelPrefix()}Request);
     %endif
 
     % endfor
     /*@brief Catch-All Handler for unhandled packets */
-    HandlerStatus_e defaultHandler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
+    virtual HandlerStatus_e defaultHandler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
 
+  private:
+    poly_service_t mService;
 
 };

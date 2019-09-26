@@ -419,6 +419,7 @@ class protocolDesc:
     def __init__(self, name):
         self.name = name
         self.fileName = name+"Service"
+        self.cppFileName = name+"Service"
         self.desc = ""
         self.hash = ""
         self.fields = []
