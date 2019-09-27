@@ -138,7 +138,7 @@ HandlerStatus_e ${proto.cppFileName}::dispatch(${proto.camelPrefix()}Packet& pac
   HandlerStatus_e ${proto.prefix}_status;
 
   //Dispatch packet
-  switch(packet.mDesc->mTypeId)
+  switch(packet.mPacket.mDesc->mTypeId)
   {
     case ${proto.prefix.upper()}_PACKET_PING_ID:
       response.build(${proto.prefix.upper()}_PACKET_ACK);
@@ -166,7 +166,7 @@ HandlerStatus_e ${proto.cppFileName}::dispatch(${proto.camelPrefix()}Packet& pac
   }
 
   //If this packet doe not have an explicit response and AutoAck is enabled, create an ack packet
-  if(( ${proto.prefix.upper()}_SERVICE.mAutoAck ) & (!response->mBuilt) && (!(packet->mHeader.mToken & POLY_ACK_FLAG)))
+  if(( mService.mAutoAck ) & (!response.mPacket.mBuilt) && (!(packet.mPacket.mHeader.mToken & POLY_ACK_FLAG)))
   {
     response.build(${proto.prefix.upper()}_PACKET_ACK);
   }
@@ -187,36 +187,36 @@ HandlerStatus_e ${proto.cppFileName}::dispatch(${proto.camelPrefix()}Packet& pac
   */
 void ${proto.cppFileName}::process()
 {
-  static ${proto.prefix}_packet_t packet;
-  static ${proto.prefix}_packet_t response;
+  static ${proto.camelPrefix()}Packet packet;
+  static ${proto.camelPrefix()}Packet response;
 
   HandlerStatus_e ${proto.prefix}_status = PACKET_NOT_HANDLED;
 
   //reset states of static packets
-  packet.mBuilt = false;
-  packet.mSpooled = false;
-  response.mSpooled = false;
-  response.mBuilt = false;
+  packet.mPacket.mBuilt = false;
+  packet.mPacket.mSpooled = false;
+  response.mPacket.mSpooled = false;
+  response.mPacket.mBuilt = false;
 
-  if(poly_service_try_parse(&mService, &packet) == PACKET_VALID)
+  if(poly_service_try_parse(&mService, &packet.mPacket) == PACKET_VALID)
   {
     //if we get here, then the inner packet was built by the parser
-    packet.mBuilt = true;
+    packet.mPacket.mBuilt = true;
 
-    ${proto.prefix}_status = ${proto.prefix}_service_dispatch(&packet,&response);
+    ${proto.prefix}_status = dispatch(packet,response);
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mPacket.mBuilt) )
     {
       //set response token with ack flag
-			response.mHeader.mToken = packet.mHeader.mToken | POLY_ACK_FLAG;
+			response.mPacket.mHeader.mToken = packet.mPacket.mHeader.mToken | POLY_ACK_FLAG;
 
-      ${proto.prefix}_send(packet.mInterface , &response);
+      send(packet.mPacket.mInterface , response);
     }
 
     //Clean the packets
-    ${proto.prefix}_clean(&packet);
-    ${proto.prefix}_clean(&response);
+    packet.clean();
+    response.clean();
   }
 
   //despool any packets ready to go out
@@ -225,12 +225,12 @@ void ${proto.cppFileName}::process()
 }
 
 
-void ${proto.cppFileName}::registerTxBytesCallback( int iface, poly_tx_bytes_callback txBytesCallBack);
+void ${proto.cppFileName}::registerTxBytesCallback( int iface, poly_tx_bytes_callback txBytesCallBack)
 {
   poly_service_register_bytes_tx_callback(&mService, iface, txBytesCallBack);
 }
 
-void ${proto.cppFileName}::registerTxPacketCallback( int iface, poly_tx_packet_callback txPacketCallBack);
+void ${proto.cppFileName}::registerTxPacketCallback( int iface, poly_tx_packet_callback txPacketCallBack)
 {
   poly_service_register_packet_tx_callback(&mService, iface,txPacketCallBack);
 }
@@ -242,36 +242,36 @@ void ${proto.cppFileName}::feed(int iface, uint8_t* data, int len)
 
 HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char* resp)
 {
-  ${proto.prefix}_packet_t packet;
-  ${proto.prefix}_packet_t response;
+  ${proto.camelPrefix()}Packet packet;
+  ${proto.camelPrefix()}Packet response;
 
   //reset states of static packets
   HandlerStatus_e ${proto.prefix}_status = PACKET_NOT_HANDLED;
-  packet.mBuilt = false;
-  packet.mSpooled = false;
-  response.mSpooled = false;
-  response.mBuilt = false;
+  packet.mPacket.mBuilt = false;
+  packet.mPacket.mSpooled = false;
+  response.mPacket.mSpooled = false;
+  response.mPacket.mBuilt = false;
 
 
-  if(poly_service_parse_json(&mService, &packet, req, len) == PACKET_VALID)
+  if(poly_service_parse_json(&mService, &packet.mPacket, req, len) == PACKET_VALID)
   {
     //if we get here, then the inner packet was built by the parser
-    packet.mBuilt = true;
+    packet.mPacket.mBuilt = true;
 
-    ${proto.prefix}_status = ${proto.prefix}_service_dispatch(&packet,&response);
+    ${proto.prefix}_status = dispatch(packet,response);
 
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mPacket.mBuilt) )
     {
       //set response token with ack flag
-			response.mHeader.mToken = packet.mHeader.mToken | POLY_ACK_FLAG;
-      poly_packet_print_json(&response, resp, false);
+			response.mPacket.mHeader.mToken = packet.mPacket.mHeader.mToken | POLY_ACK_FLAG;
+      poly_packet_print_json(&response.mPacket, resp, false);
     }
 
     //Clean the packets
-    ${proto.prefix}_clean(&packet);
-    ${proto.prefix}_clean(&response);
+    packet.clean();
+    response.clean();
 
   }
   else
@@ -283,43 +283,16 @@ HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char*
 }
 
 
-void ${proto.cppFileName}::feedJSON(int iface, const char* msg, int len)
-{
-  poly_service_feed_json_msg(&mService,iface,msg,len);
-}
-
-
-void ${proto.cppFileName}::tick(uint32_t ms)
-{
-  poly_service_tick(&mService, ms);
-}
-
-void ${proto.cppFileName}::autoAck(bool enable)
-{
-  mService.mAutoAck = enable;
-}
-
-void ${proto.cppFileName}::enableTx(int iface)
-{
-  mService.mInterfaces[iface].mTxReady = true;
-}
-
-void ${proto.cppFileName}::disableTx(int iface)
-{
-  mService.mInterfaces[iface].mTxReady = false;
-}
-
-
 
 HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Packet& packet)
 {
   HandlerStatus_e ${proto.prefix}_status;
 
-  ${proto.prefix}_status = poly_service_spool(&mService, iface, packet);
+  ${proto.prefix}_status = poly_service_spool(&mService, iface, &packet.mPacket);
 
   if(${proto.prefix}_status == PACKET_SPOOLED)
   {
-    packet->mSpooled = true;
+    packet.mPacket.mSpooled = true;
   }
 
   return ${proto.prefix}_status;
@@ -342,8 +315,8 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
 HandlerStatus_e ${proto.cppFileName}::PingHandler(${proto.camelPrefix()}Packet& ${proto.prefix}_ping, ${proto.camelPrefix()}Packet& ${proto.prefix}_ack)
 {
   /* Ack token has already been set as ping token with POLY_ACK_FLAG*/
-  uint32_t icd_hash = ${proto.prefix}_getIcd(${proto.prefix}_ping);
-  assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH );
+  uint32_t icd_hash = ${proto.prefix}_ping.getIcd();
+  /* assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH ); */
 
   return PACKET_HANDLED;
 }
@@ -353,7 +326,7 @@ HandlerStatus_e ${proto.cppFileName}::PingHandler(${proto.camelPrefix()}Packet& 
   *@param ${proto.prefix}_ack ptr to ack
   *@return PACKET_HANDLED
   */
-HandlerStatus_e ${proto.cppFileName}::Ackhandler(${proto.camelPrefix()}Packet& ${proto.prefix}_ack)
+HandlerStatus_e ${proto.cppFileName}::AckHandler(${proto.camelPrefix()}Packet& ${proto.prefix}_ack)
 {
   return PACKET_HANDLED;
 }
@@ -366,7 +339,7 @@ HandlerStatus_e ${proto.cppFileName}::Ackhandler(${proto.camelPrefix()}Packet& $
   *@param ${packet.name} incoming ${packet.name} packet
   *@return handling ${proto.prefix}_status
   */
-HandlerStatus_e ${proto.cppFileName}::${packet.camel()}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.name})
+HandlerStatus_e ${proto.cppFileName}::${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.name})
 %else:
 /**
   *@brief Handler for receiving ${packet.name} packets
@@ -374,7 +347,7 @@ HandlerStatus_e ${proto.cppFileName}::${packet.camel()}Handler(${proto.camelPref
   *@param ${packet.response.name} ${packet.response.name} packet to respond with
   *@return handling ${proto.prefix}_status
   */
-HandlerStatus_e ${proto.cppFileName}::${packet.camel()}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.name}, ${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.response.name})
+HandlerStatus_e ${proto.cppFileName}::${packet.name}Handler(${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.name}, ${proto.camelPrefix()}Packet& ${proto.prefix}_${packet.response.name})
 %endif
 {
   /*  Get Required Fields in packet */
@@ -416,7 +389,7 @@ HandlerStatus_e ${proto.cppFileName}::${packet.camel()}Handler(${proto.camelPref
   *@param ${proto.prefix}_response ptr to response
   *@return handling ${proto.prefix}_status
   */
-HandlerStatus_e ${proto.cppFileName}::defaultHandler( ${proto.prefix}_packet_t * ${proto.prefix}_packet, ${proto.camelPrefix()}Packet& ${proto.prefix}_response)
+HandlerStatus_e ${proto.cppFileName}::defaultHandler( ${proto.camelPrefix()}Packet& ${proto.prefix}Packet, ${proto.camelPrefix()}Packet& ${proto.prefix}Response)
 {
 
   /* NOTE : This function should not be modified, when the callback is needed,
@@ -430,6 +403,10 @@ HandlerStatus_e ${proto.cppFileName}::defaultHandler( ${proto.prefix}_packet_t *
   Packet
 *******************************************************************************/
 
+${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet()
+{
+  
+}
 /**
   *@brief initializes a new {proto.prefix}_packet_t
   *@param desc ptr to packet descriptor to model packet from
@@ -442,6 +419,8 @@ ${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet(poly_packet_desc_t* d
 }
 
 
+
+
 /**
   *@brief frees memory allocated for metapacket
   *@param packet ptr to metaPacket
@@ -449,12 +428,7 @@ ${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet(poly_packet_desc_t* d
   */
 ${proto.camelPrefix()}Packet::~${proto.camelPrefix()}Packet()
 {
-  //If the packet has been spooled, the spool is responsible for it now
-  if(mPacket->mBuilt && (!mPacket->mSpooled))
-  {
-    poly_packet_clean(mSpooled);
-  }
-
+  clean();
 }
 
 /**
@@ -465,6 +439,22 @@ void ${proto.camelPrefix()}Packet::build(poly_packet_desc_t* desc)
 {
   //create new allocated packet
   poly_packet_build(&mPacket, desc, true);
+
+}
+
+/**
+  *@brief frees memory allocated for metapacket
+  *@param packet ptr to metaPacket
+  *
+  */
+void ${proto.camelPrefix()}Packet::clean()
+{
+
+  //If the packet has been spooled, the spool is responsible for it now
+  if(mPacket.mBuilt && (!mPacket.mSpooled))
+  {
+    poly_packet_clean(&mPacket);
+  }
 
 }
 
@@ -502,9 +492,9 @@ void ${proto.camelPrefix()}Packet::set${field.camel()}( ${field.getParamType()} 
 %endif
 {
 %if field.isArray:
-  poly_packet_set_field(mPacket, ${field.globalName}, val);
+  poly_packet_set_field(&mPacket, ${field.globalName}, val);
 % else:
-  poly_packet_set_field(mPacket, ${field.globalName}, &val);
+  poly_packet_set_field(&mPacket, ${field.globalName}, &val);
 % endif
 }
 
@@ -531,13 +521,13 @@ void ${proto.camelPrefix()}Packet::set${field.camel()}( ${field.getParamType()} 
 %if field.isArray:
 void ${proto.camelPrefix()}Packet::get${field.camel()}(${field.getParamType()} val)
 {
-  poly_packet_get_field(mPacket, ${field.globalName}, val);
+  poly_packet_get_field(&mPacket, ${field.globalName}, val);
 }
 % else:
 ${field.getParamType()} ${proto.camelPrefix()}Packet::get${field.camel()}()
 {
   ${field.getParamType()} val;
-  poly_packet_get_field(mPacket, ${field.globalName}, &val);
+  poly_packet_get_field(&mPacket, ${field.globalName}, &val);
   return val;
 }
 % endif

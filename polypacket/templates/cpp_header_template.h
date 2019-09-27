@@ -84,11 +84,15 @@ extern poly_field_desc_t* ${field.globalName};
 
 class ${proto.camelPrefix()}Packet {
   public:
+
+    ${proto.camelPrefix()}Packet();
+
     /**
       *@brief initializes a new {proto.prefix}_packet_t
       *@param desc ptr to packet descriptor to model packet from
       */
     ${proto.camelPrefix()}Packet(poly_packet_desc_t* desc);
+
 
     /**
       *@brief recrusively cleans packet and its contents if it still has ownership
@@ -101,6 +105,17 @@ class ${proto.camelPrefix()}Packet {
       *@param desc ptr to packet descriptor to model packet from
       */
     void build(poly_packet_desc_t* desc);
+
+    /**
+      *@brief frees memory allocated for metapacket
+      *@param packet ptr to metaPacket
+      *
+      */
+    void clean();
+
+    poly_packet_t* Packet() {return &mPacket;}
+    uint16_t Token() {return mPacket.mHeader.mToken;}
+    int Interface() {return mPacket.mInterface;}
 
     /**
       *@brief converts packet to json
@@ -153,7 +168,7 @@ class ${proto.camelPrefix()}Packet {
     % for field in proto.fields:
     %if field.isArray:
     void set${field.camel()}(const ${field.getParamType()} val);
-    int get${field.camel()}(${field.getParamType()} val);
+    void get${field.camel()}(${field.getParamType()} val);
     % else:
     void set${field.camel()}(${field.getParamType()} val);
     ${field.getParamType()} get${field.camel()}();
@@ -245,7 +260,7 @@ class ${proto.cppFileName} {
       *@param msg data to be processed
       *@param number of bytes
       */
-    void feedJSON(int iface, const char* msg, int len);
+    void feedJSON(int iface, const char* msg, int len) {poly_service_feed_json_msg(&mService,iface,msg,len);}
 
     /**
       *@brief sends packet over given interface
@@ -255,17 +270,24 @@ class ${proto.cppFileName} {
     HandlerStatus_e send( int iface, ${proto.camelPrefix()}Packet& packet);
 
     /**
+      *@brief tells the service time has passed so it can track packets timeouts/retries on the spool
+      *@param ms number of milliseconds passed
+      *@note this only sets flags/statuses. Nothing is handled until the next call to process the service. So it is fine to call this from a systick handler
+      */
+      void tick(uint32_t ms) {poly_service_tick(&mService, ms);}
+
+    /**
       *@brief enables/disables the auto acknowledgement function of the service
       *@param enable true enable auto acks, false disables them
       */
-    void autoAck(bool enable);
+    void autoAck(bool enable) {mService.mAutoAck = enable;}
 
     /**
       *@brief enables/disables the txReady of an interface
       *@param enable true enable auto acks, false disables them
       */
-    void enableTx(int iface);
-    void disableTx(int iface);
+    void enableTx(int iface) {mService.mInterfaces[iface].mTxReady = true;}
+    void disableTx(int iface) {mService.mInterfaces[iface].mTxReady = false;}
 
 
   protected:
