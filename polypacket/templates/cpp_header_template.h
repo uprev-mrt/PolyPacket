@@ -149,6 +149,14 @@ class ${proto.camelPrefix()}Packet {
     int pack(uint8_t* buf){ return poly_packet_pack(&mPacket, buf);}
 
     /**
+      *@brief packs packet into a COBS encoded byte array
+      *@param packet ptr to packet to be packed
+      *@param buf buffer to store data
+      *@return length of packed data
+      */
+    int packEncoded(uint8_t* buf){ return poly_packet_pack_encoded(&mPacket, buf);}
+
+    /**
       *@brief gets the descriptor for the packet
       *@param packet ptr to packet to be checked
       */
@@ -199,7 +207,7 @@ class ${proto.cppFileName} {
       *@brief Constructor for protocol service
       *@param ifaces number of interfaces to use
       */
-    ${proto.cppFileName}(int interfaceCount);
+    ${proto.cppFileName}(int interfaceCount, int spoolSize = 32);
 
     /**
       *@brief Destructor for protocol service
@@ -222,21 +230,6 @@ class ${proto.cppFileName} {
       *@brief processes data in buffers
       */
     void process();
-
-    /**
-      *@brief registers a callback to let the service know how to send bytes for a given interface
-      *@param iface index of interface to register with
-      *@param txBytesCallBack a function pointer for the callback
-      */
-    void registerTxBytesCallback( int iface, poly_tx_bytes_callback txBytesCallBack);
-
-    /**
-      *@brief registers a callback to let the service know how to send entire packets
-      *@param iface index of interface to register with
-      *@param txPacketCallBack a function pointer for the callback
-      */
-    void registerTxPacketCallback( int iface, poly_tx_packet_callback txPacketCallBack);
-
 
     /**
       *@brief 'Feeds' bytes to service at given interface for processing
@@ -292,6 +285,9 @@ class ${proto.cppFileName} {
 
   protected:
 
+    virtual void txPacket(LcPacket& packet) {}
+    virtual void txBytes(uint8_t* data, int len) {}
+
     /**
       *@brief handles packets and dispatches to handler
       *@param req incoming message
@@ -317,6 +313,14 @@ class ${proto.cppFileName} {
     virtual HandlerStatus_e defaultHandler(${proto.camelPrefix()}Packet& ${proto.prefix}Request, ${proto.camelPrefix()}Packet& ${proto.prefix}Response );
 
   private:
+    ${proto.camelPrefix()}Packet mRequest;
+    ${proto.camelPrefix()}Packet mResponse;
+    ${proto.camelPrefix()}Packet mDespool;
+    uint8_t mBuffer[512];
+    uint8_t mBufferLen;
+
+    MRT_MUTEX_TYPE mMutex;
+
     poly_service_t mService;
 
 };

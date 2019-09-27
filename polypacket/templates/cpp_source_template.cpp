@@ -58,8 +58,17 @@ bool ${proto.cppFileName}::mDescriptorsBuilt = false;
   *@brief initializes ${proto.prefix}_protocol
   *@param interfaceCount number of interfaces to create
   */
-${proto.cppFileName}::${proto.cppFileName}(int interfaceCount)
+${proto.cppFileName}::${proto.cppFileName}(int interfaceCount, int spoolSize)
 {
+  buildDescriptors();
+
+  mRequest.build(NULL);
+  mResponse.build(NULL);
+  mDespool.build(NULL);
+
+  MRT_MUTEX_CREATE(mMutex);
+
+
   //initialize core service
   poly_service_init(&mService,${len(proto.packets) + len(proto.structs)}, interfaceCount);
 
@@ -73,8 +82,17 @@ ${proto.cppFileName}::${proto.cppFileName}(int interfaceCount)
   poly_service_register_desc(&mService, ${packet.globalName});
 % endfor
 
-  poly_service_start(&mService, 16);
+  poly_service_start(&mService, spoolSize);
 
+}
+
+${proto.cppFileName}::~${proto.cppFileName}()
+{
+  MRT_MUTEX_DELETE(mMutex);
+
+  poly_packet_clean(&mRequest.mPacket);
+  poly_packet_clean(&mResponse.mPacket);
+  tearDown();
 }
 
 void ${proto.cppFileName}::buildDescriptors()
@@ -187,57 +205,53 @@ HandlerStatus_e ${proto.cppFileName}::dispatch(${proto.camelPrefix()}Packet& pac
   */
 void ${proto.cppFileName}::process()
 {
-  static ${proto.camelPrefix()}Packet packet;
-  static ${proto.camelPrefix()}Packet response;
-
+  MRT_MUTEX_LOCK(mMutex);
   HandlerStatus_e ${proto.prefix}_status = PACKET_NOT_HANDLED;
 
-  //reset states of static packets
-  packet.mPacket.mBuilt = false;
-  packet.mPacket.mSpooled = false;
-  response.mPacket.mSpooled = false;
-  response.mPacket.mBuilt = false;
-
-  if(poly_service_try_parse(&mService, &packet.mPacket) == PACKET_VALID)
+  if(poly_service_try_parse(&mService, &mRequest.mPacket) == PACKET_VALID)
   {
     //if we get here, then the inner packet was built by the parser
-    packet.mPacket.mBuilt = true;
+    mRequest.mPacket.mBuilt = true;
 
-    ${proto.prefix}_status = dispatch(packet,response);
+    ${proto.prefix}_status = dispatch(mRequest,mResponse);
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mPacket.mBuilt) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (mResponse.mPacket.mBuilt) )
     {
       //set response token with ack flag
-			response.mPacket.mHeader.mToken = packet.mPacket.mHeader.mToken | POLY_ACK_FLAG;
+			mResponse.mPacket.mHeader.mToken = mRequest.mPacket.mHeader.mToken | POLY_ACK_FLAG;
 
-      send(packet.mPacket.mInterface , response);
+      send(mRequest.mPacket.mInterface , mResponse);
     }
 
-    //Clean the packets
-    packet.clean();
-    response.clean();
   }
 
   //despool any packets ready to go out
-  poly_service_despool(&mService);
+  for(int i=0; i < mService.mInterfaceCount; i++)
+  {
+    if(poly_service_despool_interface(&mService.mInterfaces[i], &mDespool.mPacket))
+    {
+      mBufferLen = mDespool.packEncoded(mBuffer);
+      txPacket(mDespool);
+      txBytes(mBuffer, mBufferLen);
+    }
+  }
 
+  //Clean the packets
+  mRequest.clean();
+  mResponse.clean();
+  /*NOTE: we do not clean mDespool, because it is also referencing a packet owned by the spool which is self-cleaning*/
+  MRT_MUTEX_UNLOCK(mMutex);
 }
 
-
-void ${proto.cppFileName}::registerTxBytesCallback( int iface, poly_tx_bytes_callback txBytesCallBack)
-{
-  poly_service_register_bytes_tx_callback(&mService, iface, txBytesCallBack);
-}
-
-void ${proto.cppFileName}::registerTxPacketCallback( int iface, poly_tx_packet_callback txPacketCallBack)
-{
-  poly_service_register_packet_tx_callback(&mService, iface,txPacketCallBack);
-}
 
 void ${proto.cppFileName}::feed(int iface, uint8_t* data, int len)
 {
+  MRT_MUTEX_LOCK(mMutex);
+
   poly_service_feed(&mService,iface,data,len);
+
+  MRT_MUTEX_UNLOCK(mMutex);
 }
 
 HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char* resp)
@@ -286,6 +300,8 @@ HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char*
 
 HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Packet& packet)
 {
+  MRT_MUTEX_LOCK(mMutex);
+
   HandlerStatus_e ${proto.prefix}_status;
 
   ${proto.prefix}_status = poly_service_spool(&mService, iface, &packet.mPacket);
@@ -294,6 +310,8 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
   {
     packet.mPacket.mSpooled = true;
   }
+
+  MRT_MUTEX_UNLOCK(mMutex);
 
   return ${proto.prefix}_status;
 }
@@ -405,7 +423,7 @@ HandlerStatus_e ${proto.cppFileName}::defaultHandler( ${proto.camelPrefix()}Pack
 
 ${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet()
 {
-  
+
 }
 /**
   *@brief initializes a new {proto.prefix}_packet_t
@@ -455,6 +473,8 @@ void ${proto.camelPrefix()}Packet::clean()
   {
     poly_packet_clean(&mPacket);
   }
+
+  mPacket.mBuilt = false;
 
 }
 
