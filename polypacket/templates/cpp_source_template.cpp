@@ -90,8 +90,8 @@ ${proto.cppFileName}::~${proto.cppFileName}()
 {
   MRT_MUTEX_DELETE(mMutex);
 
-  poly_packet_clean(&mRequest.mPacket);
-  poly_packet_clean(&mResponse.mPacket);
+  // poly_packet_clean(&mRequest.mPacket);
+  // poly_packet_clean(&mResponse.mPacket);
   tearDown();
 }
 
@@ -224,6 +224,9 @@ void ${proto.cppFileName}::process()
       send(mRequest.mPacket.mInterface , mResponse);
     }
 
+    //Clean the packets
+    mRequest.clean();
+    mResponse.clean();
   }
 
   //despool any packets ready to go out
@@ -237,9 +240,6 @@ void ${proto.cppFileName}::process()
     }
   }
 
-  //Clean the packets
-  mRequest.clean();
-  mResponse.clean();
   /*NOTE: we do not clean mDespool, because it is also referencing a packet owned by the spool which is self-cleaning*/
   MRT_MUTEX_UNLOCK(mMutex);
 }
@@ -316,7 +316,10 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
   return ${proto.prefix}_status;
 }
 
-
+HandlerStatus_e ${proto.cppFileName}::send(${proto.camelPrefix()}Packet& packet)
+{
+  return send(0, packet);
+}
 
 
 /*******************************************************************************
@@ -416,140 +419,3 @@ HandlerStatus_e ${proto.cppFileName}::defaultHandler( ${proto.camelPrefix()}Pack
 
   return PACKET_NOT_HANDLED;
 }
-
-/*******************************************************************************
-  Packet
-*******************************************************************************/
-
-${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet()
-{
-
-}
-/**
-  *@brief initializes a new {proto.prefix}_packet_t
-  *@param desc ptr to packet descriptor to model packet from
-  */
-${proto.camelPrefix()}Packet::${proto.camelPrefix()}Packet(poly_packet_desc_t* desc)
-{
-  //create new allocated packet
-  poly_packet_build(&mPacket, desc, true);
-
-}
-
-
-
-
-/**
-  *@brief frees memory allocated for metapacket
-  *@param packet ptr to metaPacket
-  *
-  */
-${proto.camelPrefix()}Packet::~${proto.camelPrefix()}Packet()
-{
-  clean();
-}
-
-/**
-  *@brief builds a new ${proto.camelPrefix()}Packet
-  *@param desc ptr to packet descriptor to model packet from
-  */
-void ${proto.camelPrefix()}Packet::build(poly_packet_desc_t* desc)
-{
-  //create new allocated packet
-  poly_packet_build(&mPacket, desc, true);
-
-}
-
-/**
-  *@brief frees memory allocated for metapacket
-  *@param packet ptr to metaPacket
-  *
-  */
-void ${proto.camelPrefix()}Packet::clean()
-{
-
-  //If the packet has been spooled, the spool is responsible for it now
-  if(mPacket.mBuilt && (!mPacket.mSpooled))
-  {
-    poly_packet_clean(&mPacket);
-  }
-
-  mPacket.mBuilt = false;
-
-}
-
-/**
-  *@brief Copies all fields present in both packets from src to dst
-  *@param dst ptr to packet to copy to
-  *@param src ptr to packet to copy from
-  */
-void ${proto.camelPrefix()}Packet::copyFrom(${proto.camelPrefix()}Packet& src)
-{
-  poly_packet_copy(&mPacket , &src.mPacket );
-}
-
-/*******************************************************************************
-
-  Packet setters
-
-*******************************************************************************/
-
-% for field in proto.fields:
-%if field.isArray:
-/**
-  *@brief Sets value(s) in ${field.name} field
-  *@param packet ptr to ${proto.prefix}_packet
-  *@param val ${field.getParamType()} to copy data from
-  */
-void ${proto.camelPrefix()}Packet::set${field.camel()}(const ${field.getParamType()} val)
-% else:
-/**
-  *@brief Sets value of ${field.name} field
-  *@param packet ptr to ${proto.prefix}_packet
-  *@param val ${field.getParamType()} to set field to
-  */
-void ${proto.camelPrefix()}Packet::set${field.camel()}( ${field.getParamType()} val)
-%endif
-{
-%if field.isArray:
-  poly_packet_set_field(&mPacket, ${field.globalName}, val);
-% else:
-  poly_packet_set_field(&mPacket, ${field.globalName}, &val);
-% endif
-}
-
-% endfor
-
-/*******************************************************************************
-  Packet getters
-*******************************************************************************/
-
-% for field in proto.fields:
-%if field.isArray:
-/**
-  *@brief Gets value of ${field.name} field
-  *@param packet ptr to ${proto.prefix}_packet
-  *@return ${field.getParamType()} of data in field
-  */
-%else:
-/**
-  *@brief Gets value of ${field.name} field
-  *@param packet ptr to ${proto.prefix}_packet
-  *@return ${field.getParamType()} data from field
-  */
-%endif
-%if field.isArray:
-void ${proto.camelPrefix()}Packet::get${field.camel()}(${field.getParamType()} val)
-{
-  poly_packet_get_field(&mPacket, ${field.globalName}, val);
-}
-% else:
-${field.getParamType()} ${proto.camelPrefix()}Packet::get${field.camel()}()
-{
-  ${field.getParamType()} val;
-  poly_packet_get_field(&mPacket, ${field.globalName}, &val);
-  return val;
-}
-% endif
-
-% endfor
