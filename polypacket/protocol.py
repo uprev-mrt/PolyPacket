@@ -430,6 +430,7 @@ class protocolDesc:
         self.packetIdx ={}
         self.packetId =0
         self.structs =[]
+        self.structsAndPackets=[]
         self.structIdx ={}
         self.structId =0
         self.prefix = "pp"
@@ -442,6 +443,9 @@ class protocolDesc:
 
     def service(self):
         return self.prefix.upper() +'_SERVICE'
+
+    def descFromId(self, typeId):
+        return self.packets[typeId-len(self.structs)]
 
     def camelPrefix(self):
         return self.prefix[:1].capitalize() + self.prefix[1:]
@@ -461,6 +465,7 @@ class protocolDesc:
         packet.protocol = self
         packet.setPrefix(self.prefix)
         self.packets.append(packet)
+        self.structsAndPackets.append(packet)
         self.packetIdx[packet.name] = self.packetId
         self.packetId+=1
 
@@ -470,12 +475,13 @@ class protocolDesc:
         struct.struct = True
         struct.globalName = self.prefix.upper()+"_STRUCT_"+struct.name.upper()
         self.structs.append(struct)
+        self.structsAndPackets.append(struct)
         self.structIdx[struct.name] = self.packetId
         self.packetId+=1
 
     def getPacket(self, name):
         if name in self.packetIdx:
-            return self.packets[self.packetIdx[name]]
+            return self.structsAndPackets[self.packetIdx[name]]
 
 
 
@@ -731,7 +737,40 @@ def parseYAML(yamlFile):
         else:
             parseYAMLField(protocol, fieldItem)
 
+    for structItem in objProtocol['structs']:
+        name = list(structItem.keys())[0]
+        struct = list(structItem.values())[0]
+        desc =""
+        newStruct = packetDesc(name,protocol)
 
+
+        if(name in protocol.structIdx):
+            print( 'ERROR Duplicate Struct Name!: ' + name)
+
+        if('desc' in struct):
+            desc = struct['desc']
+
+        #get all fields declared for packet
+        if "fields" in struct:
+            for pfieldItem in struct['fields']:
+
+                if type(pfieldItem) is dict:
+                    pfname = list(pfieldItem.keys())[0]
+                    pfield = list(pfieldItem.values())[0]
+                else:
+                    pfname = pfieldItem
+                    pfield = {}
+
+
+                if pfname in protocol.fieldGroups:
+                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                        newStruct.addYAMLField(pfFieldGroupItem)
+                else:
+                    newStruct.addYAMLField(pfieldItem)
+
+        newStruct.desc = desc
+
+        protocol.addStruct(newStruct)
 
     for packetItem in objProtocol['packets']:
         name = list(packetItem.keys())[0]
@@ -747,9 +786,10 @@ def parseYAML(yamlFile):
             desc = packet['desc']
 
         if('response' in packet):
-            newPacket.requests[packet['response']] = 0
+            if (packet['response'] != "none"):
+                newPacket.requests[packet['response']] = 0
         else:
-            if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name  :
+            if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name :
                 newPacket.requests[protocol.defaultResponse] = 0
 
         #get all fields declared for packet
@@ -774,40 +814,6 @@ def parseYAML(yamlFile):
 
         protocol.addPacket(newPacket)
 
-    for structItem in objProtocol['structs']:
-        name = list(structItem.keys())[0]
-        struct = list(structItem.values())[0]
-        desc =""
-        newStruct = packetDesc(name,protocol)
-
-
-        if(name in protocol.structIdx):
-            print( 'ERROR Duplicate Struct Name!: ' + name)
-
-        if('desc' in struct):
-            desc = packet['desc']
-
-        #get all fields declared for packet
-        if "fields" in struct:
-            for pfieldItem in struct['fields']:
-
-                if type(pfieldItem) is dict:
-                    pfname = list(pfieldItem.keys())[0]
-                    pfield = list(pfieldItem.values())[0]
-                else:
-                    pfname = pfieldItem
-                    pfield = {}
-
-
-                if pfname in protocol.fieldGroups:
-                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
-                        newStruct.addYAMLField(pfFieldGroupItem)
-                else:
-                    newStruct.addYAMLField(pfieldItem)
-
-        newStruct.desc = desc
-
-        protocol.addStruct(newStruct)
 
     if 'sims' in  objProtocol: #experimental
         for simItem in objProtocol['sims']:

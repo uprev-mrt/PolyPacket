@@ -12,15 +12,24 @@
 #include "${proto.cppFileName}.h"
 #include <assert.h>
 
-//Define packet IDs
+//Define Standard packet IDs
 % for packet in proto.packets:
+%if packet.standard:
 #define ${packet.globalName}_ID ${packet.packetId}
+%endif
 % endfor
 
+//Define Struct IDs
 % for packet in proto.structs:
 #define ${packet.globalName}_ID ${packet.packetId}
 % endfor
 
+//Define packet IDs
+% for packet in proto.packets:
+%if not packet.standard:
+#define ${packet.globalName}_ID ${packet.packetId}
+%endif
+% endfor
 
 //Global descriptors
 % for packet in proto.packets:
@@ -72,14 +81,23 @@ ${proto.cppFileName}::${proto.cppFileName}(int interfaceCount, int spoolSize)
   //initialize core service
   poly_service_init(&mService,${len(proto.packets) + len(proto.structs)}, interfaceCount);
 
-  //Register packet descriptors with the service
+  //Register standard packet descriptors with the service
 % for packet in proto.packets:
+%if packet.standard:
+  poly_service_register_desc(&mService, ${packet.globalName});
+%endif
+% endfor
+
+  //Register Struct descriptors with the service
+% for packet in proto.structs:
   poly_service_register_desc(&mService, ${packet.globalName});
 % endfor
 
   //Register packet descriptors with the service
-% for packet in proto.structs:
+% for packet in proto.packets:
+%if not packet.standard:
   poly_service_register_desc(&mService, ${packet.globalName});
+%endif
 % endfor
 
   poly_service_start(&mService, spoolSize);
@@ -101,15 +119,24 @@ void ${proto.cppFileName}::buildDescriptors()
   if(mDescriptorsBuilt)
     return;
 
-    //Build Packet Descriptors
-  % for packet in proto.packets:
+    //Build Standard Packet Descriptors
+    % for packet in proto.packets:
+    %if packet.standard:
     ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
-  % endfor
+    %endif
+    % endfor
 
     //Build Struct Descriptors
-  % for packet in proto.structs:
+    % for packet in proto.structs:
     ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
-  % endfor
+    % endfor
+
+    //Build Packet Descriptors
+    % for packet in proto.packets:
+    %if not packet.standard:
+    ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
+    %endif
+    % endfor
 
     //Build Field Descriptors
   % for field in proto.fields:
@@ -300,7 +327,6 @@ HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char*
 
 HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Packet& packet)
 {
-  MRT_MUTEX_LOCK(mMutex);
 
   HandlerStatus_e ${proto.prefix}_status;
 
@@ -310,8 +336,6 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
   {
     packet.mPacket.mSpooled = true;
   }
-
-  MRT_MUTEX_UNLOCK(mMutex);
 
   return ${proto.prefix}_status;
 }

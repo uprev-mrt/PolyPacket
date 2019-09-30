@@ -12,13 +12,23 @@
 #include "${proto.fileName}.h"
 #include <assert.h>
 
-//Define packet IDs
+//Define Standard packet IDs
 % for packet in proto.packets:
+%if packet.standard:
+#define ${packet.globalName}_ID ${packet.packetId}
+%endif
+% endfor
+
+//Define Struct IDs
+% for packet in proto.structs:
 #define ${packet.globalName}_ID ${packet.packetId}
 % endfor
 
-% for packet in proto.structs:
+//Define packet IDs
+% for packet in proto.packets:
+%if not packet.standard:
 #define ${packet.globalName}_ID ${packet.packetId}
+%endif
 % endfor
 
 
@@ -63,14 +73,23 @@ void ${proto.prefix}_service_init(int interfaceCount)
   //initialize core service
   poly_service_init(&${proto.service()},${len(proto.packets) + len(proto.structs)}, interfaceCount);
 
-  //Build Packet Descriptors
+//Build Standard Packet Descriptors
 % for packet in proto.packets:
+  %if packet.standard:
+  ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
+  %endif
+% endfor
+
+//Build Struct Descriptors
+% for packet in proto.structs:
   ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
 % endfor
 
-  //Build Struct Descriptors
-% for packet in proto.structs:
+//Build Packet Descriptors
+% for packet in proto.packets:
+%if not packet.standard:
   ${packet.globalName} = poly_packet_desc_init(&_${packet.globalName} ,${packet.globalName}_ID,"${packet.name}", ${len(packet.fields)});
+%endif
 % endfor
 
   //Build Field Descriptors
@@ -98,14 +117,23 @@ void ${proto.prefix}_service_init(int interfaceCount)
 
 % endfor
 
-  //Register packet descriptors with the service
+  //Register standard packet descriptors with the service
 % for packet in proto.packets:
+%if packet.standard:
+  poly_service_register_desc(&${proto.service()}, ${packet.globalName});
+%endif
+% endfor
+
+  //Register Struct descriptors with the service
+% for packet in proto.structs:
   poly_service_register_desc(&${proto.service()}, ${packet.globalName});
 % endfor
 
   //Register packet descriptors with the service
-% for packet in proto.structs:
+% for packet in proto.packets:
+%if not packet.standard:
   poly_service_register_desc(&${proto.service()}, ${packet.globalName});
+%endif
 % endfor
 
   poly_service_start(&${proto.service()}, 16);

@@ -257,7 +257,7 @@ class PolyPacket:
 
     def build(self, typeId):
         self.typeId = typeId
-        self.desc = self.protocol.packets[typeId]
+        self.desc = self.protocol.structsAndPackets[typeId]
         for fieldDesc in self.desc.fields:
             self.fields.append( PolyField(fieldDesc))
 
@@ -413,11 +413,12 @@ class PolyIface:
 
             decoded = cobs.decode(encodedPacket)
 
-            #self.print(" PARSE: " + ''.join(' {:02x}'.format(x) for x in decoded))
-
             newPacket.parse(decoded)
 
             if not self.service.silenceDict[newPacket.desc.name]:
+                if self.service.showBytes:
+                    self.print(" PARSE HDR: " + ''.join(' {:02x}'.format(x) for x in decoded[:8]))
+                    self.print(" PARSE DATA: " + ''.join(' {:02x}'.format(x) for x in decoded[8:]))
                 if (newPacket.token & 0x7FFF) != (self.lastToken & 0x7FFF):
                     self.print("")
 
@@ -436,7 +437,9 @@ class PolyIface:
 
         raw = packet.pack()
 
-        #self.print(" PACK: " + ''.join(' {:02x}'.format(x) for x in raw))
+        if self.service.showBytes:
+            self.print(" PACK HDR: " + ''.join(' {:02x}'.format(x) for x in raw[:8]))
+            self.print(" PACK DATA: " + ''.join(' {:02x}'.format(x) for x in raw[8:]))
 
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
@@ -469,6 +472,7 @@ class PolyService:
         self.autoAck = True
         self.handlers = {}
         self.silenceDict = {}
+        self.showBytes = False
 
         for packet in protocol.packets:
             self.silenceDict[packet.name] = False

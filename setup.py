@@ -22,11 +22,11 @@ setuptools.setup(
      'polypacket':['examples/*'],
      },
      install_requires=[
-        'markdown',
-        'mako',
-        'prompt_toolkit',
-        'pyyaml',
-        'cobs'
+        # 'markdown',
+        # 'mako',
+        # 'prompt_toolkit',
+        # 'pyyaml',
+        # 'cobs'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",

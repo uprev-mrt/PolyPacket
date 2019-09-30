@@ -139,6 +139,8 @@ def init_args():
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
     parser.add_argument('-c', '--command', nargs='+', help='Commands to execute on start, seperate with ;', default="")
+    parser.add_argument('-b', '--bytes', action='store_true', help='shows packet bytes', default=False)
+    parser.add_argument('-m', '--meta', action='store_true', help='shows packet meta data', default=False)
 
 
 def saveBufferToFile(fileName):
@@ -227,6 +229,12 @@ def run():
 
         PROTOCOL.hash = fileHash
         PROTOCOL.crc = fileCrc
+
+        if args.meta:
+            SERVICE.showMeta = True
+
+        if args.bytes:
+            SERVICE.showBytes = True
 
 
     packetNames = []
