@@ -62,15 +62,16 @@ class PolySerial (threading.Thread):
         self.iface = iface
         self.port = port
         self.baud = baud
+        self.opened = False
         try:
             self.serialPort = serial.Serial(
-            port = port,
-            baudrate=baud,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize= serial.EIGHTBITS
+                port = port,
+                baudrate=baud,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize= serial.EIGHTBITS
             )
-
+            self.opened = True
             self.iface.print(self.iface.name + " Port Opened : " + port)
         except serial.SerialException as e:
             print(e)
@@ -82,17 +83,20 @@ class PolySerial (threading.Thread):
         threading.Thread.__del__(self)
 
     def close(self):
-        self.serialPort.close()
+        if self.opened:
+            self.serialPort.close()
 
 
     def send(self, data):
-        self.serialPort.write(data)
+        if self.opened:
+            self.serialPort.write(data)
 
     def run(self):
-        while True:
-            if self.serialPort.inWaiting() > 0:
-                data = self.serialPort.read()
-                self.iface.feedEncodedBytes(data)
+        if self.opened:
+            while True:
+                if self.serialPort.inWaiting() > 0:
+                    data = self.serialPort.read()
+                    self.iface.feedEncodedBytes(data)
 
 
 class PolyUdp (threading.Thread):
