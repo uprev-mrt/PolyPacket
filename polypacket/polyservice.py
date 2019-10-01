@@ -399,6 +399,8 @@ class PolyIface:
 
     def feedEncodedBytes(self, encodedBytes):
 
+        silent = False
+
         for i in encodedBytes:
             self.bytesIn.append(i)
             if i == 0:
@@ -419,7 +421,10 @@ class PolyIface:
 
             newPacket.parse(decoded)
 
-            if not self.service.silenceDict[newPacket.desc.name]:
+            if self.service.silenceDict[newPacket.desc.name]:
+                silent = True
+
+            if not silent:
                 if self.service.showBytes:
                     self.print(" PARSE HDR: " + ''.join(' {:02x}'.format(x) for x in decoded[:8]))
                     self.print(" PARSE DATA: " + ''.join(' {:02x}'.format(x) for x in decoded[8:]))
@@ -431,17 +436,17 @@ class PolyIface:
             resp = newPacket.handler(self)
             self.lastToken = newPacket.token
             if resp:
-                self.sendPacket(resp)
+                self.sendPacket(resp, silent)
             #self.packetsIn.append(newPacket)
 
-    def sendPacket(self, packet):
+    def sendPacket(self, packet, silent = False):
 
         if packet.desc.name == "Ping":
             packet.setField('icd', str(self.service.protocol.crc))
 
         raw = packet.pack()
 
-        if self.service.showBytes:
+        if self.service.showBytes and not silent:
             self.print(" PACK HDR: " + ''.join(' {:02x}'.format(x) for x in raw[:8]))
             self.print(" PACK DATA: " + ''.join(' {:02x}'.format(x) for x in raw[8:]))
 
@@ -451,7 +456,8 @@ class PolyIface:
         if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
             self.print("")
 
-        self.print( " --> " + packet.printJSON(self.service.showMeta))
+        if not silent:
+            self.print( " --> " + packet.printJSON(self.service.showMeta))
 
         if hasattr(self, 'coms'):
             self.coms.send(encoded)
