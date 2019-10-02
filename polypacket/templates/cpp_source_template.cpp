@@ -243,12 +243,17 @@ void ${proto.cppFileName}::process()
     ${proto.prefix}_status = dispatch(mRequest,mResponse);
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (mResponse.mPacket.mBuilt) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (mResponse.mPacket.mBuilt) && ((mRequest.mPacket.mHeader.mToken &POLY_ACK_FLAG)==0) )
     {
       //set response token with ack flag
 			mResponse.mPacket.mHeader.mToken = mRequest.mPacket.mHeader.mToken | POLY_ACK_FLAG;
 
-      send(mRequest.mPacket.mInterface , mResponse);
+      ${proto.prefix}_status = poly_service_spool(&mService, mResponse.mPacket.mInterface, &mResponse.mPacket);
+
+      if(${proto.prefix}_status == PACKET_SPOOLED)
+      {
+        mResponse.mPacket.mSpooled = true;
+      }
     }
 
     //Clean the packets
@@ -327,8 +332,9 @@ HandlerStatus_e ${proto.cppFileName}::handleJSON(const char* req, int len, char*
 
 HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Packet& packet)
 {
-
+  MRT_MUTEX_LOCK(mMutex);
   HandlerStatus_e ${proto.prefix}_status;
+
 
   ${proto.prefix}_status = poly_service_spool(&mService, iface, &packet.mPacket);
 
@@ -337,6 +343,7 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
     packet.mPacket.mSpooled = true;
   }
 
+  MRT_MUTEX_UNLOCK(mMutex);
   return ${proto.prefix}_status;
 }
 
