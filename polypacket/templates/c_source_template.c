@@ -227,7 +227,7 @@ void ${proto.prefix}_service_process()
     ${proto.prefix}_status = ${proto.prefix}_service_dispatch(&packet,&response);
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (response.mBuilt) && ((packet.mHeader.mToken & POLY_ACK_FLAG)==0))
     {
       //set response token with ack flag
 			response.mHeader.mToken = packet.mHeader.mToken | POLY_ACK_FLAG;
@@ -259,6 +259,11 @@ void ${proto.prefix}_service_register_packet_tx( int iface, poly_tx_packet_callb
 void ${proto.prefix}_service_feed(int iface, uint8_t* data, int len)
 {
   poly_service_feed(&${proto.service()},iface,data,len);
+}
+
+void ${proto.prefix}_service_set_retry(int iface, uint16_t retries, uint32_t timeoutMs)
+{
+  poly_service_set_retry(&${proto.service()}, iface,  retries,  timeoutMs);
 }
 
 HandlerStatus_e ${proto.prefix}_handle_json(const char* req, int len, char* resp)
@@ -343,6 +348,7 @@ void ${proto.prefix}_packet_build(${proto.prefix}_packet_t* packet, poly_packet_
 {
   //create new allocated packet
   poly_packet_build(packet, desc, true);
+  packet->mAckType = ACK_TYPE_NONE;
   packet->mBuilt = true;
   packet->mSpooled = false;
 }

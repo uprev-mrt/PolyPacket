@@ -57,6 +57,7 @@ poly_packet_desc_t _${packet.globalName};
 poly_field_desc_t _${field.globalName};
 % endfor
 
+poly_service_t ${proto.camelPrefix()}Packet::DESC_INDEX;
 bool ${proto.cppFileName}::mDescriptorsBuilt = false;
 
 /*******************************************************************************
@@ -163,6 +164,31 @@ void ${proto.cppFileName}::buildDescriptors()
 
   % endfor
 
+  /************************************************************************
+                        Descriptor Index
+  ************************************************************************/
+  poly_service_init(&${proto.camelPrefix()}Packet::DESC_INDEX,${len(proto.packets) + len(proto.structs)}, 0);
+
+  //Register standard packet descriptors with the service
+% for packet in proto.packets:
+%if packet.standard:
+  poly_service_register_desc(&${proto.camelPrefix()}Packet::DESC_INDEX, ${packet.globalName});
+%endif
+% endfor
+
+  //Register Struct descriptors with the service
+% for packet in proto.structs:
+  poly_service_register_desc(&${proto.camelPrefix()}Packet::DESC_INDEX, ${packet.globalName});
+% endfor
+
+  //Register packet descriptors with the service
+% for packet in proto.packets:
+%if not packet.standard:
+  poly_service_register_desc(&${proto.camelPrefix()}Packet::DESC_INDEX, ${packet.globalName});
+%endif
+% endfor
+
+
   mDescriptorsBuilt = true;
 
 }
@@ -181,6 +207,7 @@ HandlerStatus_e ${proto.cppFileName}::dispatch(${proto.camelPrefix()}Packet& pac
 {
 
   HandlerStatus_e ${proto.prefix}_status;
+  logIncomingPacket(packet);
 
   //Dispatch packet
   switch(packet.mPacket.mDesc->mTypeId)
@@ -243,7 +270,7 @@ void ${proto.cppFileName}::process()
     ${proto.prefix}_status = dispatch(mRequest,mResponse);
 
     //If a response has been build and the ${proto.prefix}_status was not set to ignore, we send a response on the intrface it came from
-    if(( ${proto.prefix}_status == PACKET_HANDLED) && (mResponse.mPacket.mBuilt) && ((mRequest.mPacket.mHeader.mToken &POLY_ACK_FLAG)==0) )
+    if(( ${proto.prefix}_status == PACKET_HANDLED) && (mResponse.mPacket.mBuilt) && ((mRequest.mPacket.mHeader.mToken & POLY_ACK_FLAG)==0) )
     {
       //set response token with ack flag
 			mResponse.mPacket.mHeader.mToken = mRequest.mPacket.mHeader.mToken | POLY_ACK_FLAG;
@@ -268,6 +295,7 @@ void ${proto.cppFileName}::process()
     {
       mBufferLen = mDespool.packEncoded(mBuffer);
       txPacket(mDespool);
+      logOutgoingPacket(mDespool);
       txBytes(mBuffer, mBufferLen);
     }
   }
@@ -335,7 +363,6 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
   MRT_MUTEX_LOCK(mMutex);
   HandlerStatus_e ${proto.prefix}_status;
 
-
   ${proto.prefix}_status = poly_service_spool(&mService, iface, &packet.mPacket);
 
   if(${proto.prefix}_status == PACKET_SPOOLED)
@@ -346,6 +373,7 @@ HandlerStatus_e ${proto.cppFileName}::send(int iface, ${proto.camelPrefix()}Pack
   MRT_MUTEX_UNLOCK(mMutex);
   return ${proto.prefix}_status;
 }
+
 
 HandlerStatus_e ${proto.cppFileName}::send(${proto.camelPrefix()}Packet& packet)
 {

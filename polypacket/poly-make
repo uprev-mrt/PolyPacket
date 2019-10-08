@@ -155,7 +155,7 @@ def main():
             #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
 
         if(jsPath != ""):
-            buildTemplate(protocol,  'templates/javascript_template.js', jsPath + protocol.fileName+".js");
+            buildTemplate(protocol,  'templates/javascript_template.js', jsPath +"/"+ protocol.fileName+".js");
 
         if(utilPath != ""):
             print ("Generating Utility from:" +inputFile)

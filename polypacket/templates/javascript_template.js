@@ -50,13 +50,17 @@ function ${proto.prefix}_sendPing(callback)
 /**
   *@brief sends ${packet.name} packet
   %for field in packet.fields:
+  %if field.isRequired:
   *@param ${field.name} value to set ${field.name} field to
+  %endif
   %endfor
   *@return ${proto.prefix}_status send attempt
   */
 function ${proto.prefix}_send${packet.camel()}(\
   %for idx,field in enumerate(packet.fields):
+  %if field.isRequired:
   ${field.name.lower()} , \
+  %endif
   %endfor
   callback \
 )
@@ -66,7 +70,9 @@ function ${proto.prefix}_send${packet.camel()}(\
 
   //set fields
   %for field in packet.fields:
+  %if field.isRequired:
   req.packet.${field.name} = ${field.name.lower()};
+  %endif
   %endfor
 
   //Send request

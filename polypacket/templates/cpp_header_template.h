@@ -88,6 +88,8 @@ using namespace std;
 class ${proto.camelPrefix()}Packet {
   public:
 
+    static poly_service_t DESC_INDEX; //dummy service wild descriptors for parsing
+
     ${proto.camelPrefix()}Packet()
     {
       poly_packet_build(&mPacket, NULL, true);
@@ -121,6 +123,8 @@ class ${proto.camelPrefix()}Packet {
       mPacket.mReusable = true;
     }
 
+
+
     /**
       *@brief frees memory allocated for metapacket
       *@param packet ptr to metaPacket
@@ -147,14 +151,15 @@ class ${proto.camelPrefix()}Packet {
       *@param buf buffer to store string
       *@return length of string
       */
-    string toJSON()
+    string toJSON(bool meta=false)
     {
       char buf[512];
 
-      poly_packet_print_json(&mPacket, buf, false);
+      poly_packet_print_json(&mPacket, buf, meta);
 
       return string(buf);
     }
+
 
     /**
       *@brief parses packet from a buffer of data
@@ -163,6 +168,14 @@ class ${proto.camelPrefix()}Packet {
       *@return status of parse attempt
       */
      ParseStatus_e parse(const uint8_t * buf, int len) { return poly_packet_parse_buffer(&mPacket, buf, len); }
+
+     /**
+       *@brief parses packet from a buffer of data
+       *@param json json string
+       *@param service reference to service to build packet from
+       *@return status of parse attempt
+       */
+      ParseStatus_e parseJSON(string json) { return poly_service_parse_json(&DESC_INDEX, &mPacket, json.c_str(), json.length() ); }
 
     /**
       *@brief Copies all fields present in both packets from src to dst
@@ -199,7 +212,7 @@ class ${proto.camelPrefix()}Packet {
       *@param field ptr to field desc
       *@return true if field is present
       */
-    bool hasField(poly_field_desc_t* field) {  return poly_packet_has(&mPacket, field);}
+    bool hasField(poly_field_desc_t* field) const {  return poly_packet_has(&mPacket, field);}
 
     /*******************************************************************************
     Meta-Packet setters/Getters
@@ -328,6 +341,7 @@ class ${proto.cppFileName} {
       */
     HandlerStatus_e send( int iface, ${proto.camelPrefix()}Packet& packet);
 
+
     /**
       *@brief sends packet to default interface (0)
       *@param packet packet to be sent
@@ -340,6 +354,9 @@ class ${proto.cppFileName} {
       *@note this only sets flags/statuses. Nothing is handled until the next call to process the service. So it is fine to call this from a systick handler
       */
       void tick(uint32_t ms) {poly_service_tick(&mService, ms);}
+
+      void setRetries(int iface, uint32_t retries, uint32_t timeoutMs) {poly_service_set_retry(&mService, iface,  retries,  timeoutMs);}
+      void setRetries(uint32_t retries, uint32_t timeoutMs) { poly_service_set_retry(&mService, 0,  retries,  timeoutMs);}
 
     /**
       *@brief enables/disables the auto acknowledgement function of the service
@@ -359,6 +376,9 @@ class ${proto.cppFileName} {
 
     virtual void txPacket(LcPacket& packet) {}
     virtual void txBytes(uint8_t* data, int len) {}
+
+    virtual void logIncomingPacket(LcPacket& packet){}
+    virtual void logOutgoingPacket(LcPacket& packet){}
 
     /**
       *@brief handles packets and dispatches to handler

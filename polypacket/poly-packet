@@ -199,6 +199,13 @@ def parseCommand(text):
 
     SERVICE.interfaces[0].sendPacket(newPacket)
 
+def load_sim(service, sim):
+    for key, value in sim.handlers.items():
+        fx = "def "+ key +"_handler(req, resp):" + value
+        print(fx)
+        exec(fx)
+        exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
+
 def run():
     global parser
     global args
@@ -229,6 +236,10 @@ def run():
 
         PROTOCOL.hash = fileHash
         PROTOCOL.crc = fileCrc
+
+        for key, value in PROTOCOL.sims.items():
+            if(key == 'default'):
+                load_sim(SERVICE, value)
 
         if args.meta:
             SERVICE.showMeta = True

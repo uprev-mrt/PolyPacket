@@ -147,6 +147,14 @@ void ${proto.prefix}_service_register_packet_tx( int iface, poly_tx_packet_callb
 void ${proto.prefix}_service_feed(int iface, uint8_t* data, int len);
 
 /**
+  *@brief sets retry behavior for interface of service
+  *@param iface index of interface to send on
+  *@param retries number of retries
+  *@param timeoutMs MS value for timeout before retry
+  */
+void ${proto.prefix}_service_set_retry(int iface, uint16_t retries, uint32_t timeoutMs);
+
+/**
   *@brief handles json message, and shortcuts the servicing proccess. used for http requests
   *@param req incoming json message string
   *@param resp response data

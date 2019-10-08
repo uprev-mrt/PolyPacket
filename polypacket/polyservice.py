@@ -258,6 +258,13 @@ class PolyPacket:
                 field.set(value)
                 break
 
+    def getField(self, fieldName):
+        for field in self.fields:
+            if fieldName.lower() == field.desc.name.lower():
+                return field.get()
+        return -1
+
+
 
     def build(self, typeId):
         self.typeId = typeId
@@ -279,20 +286,20 @@ class PolyPacket:
 
         resp = 0
 
-        if self.desc.name in iface.service.handlers:
-            resp = iface.service.handlers[self.desc.name](self)
-        elif 'default' in iface.service.handlers:
-            resp = iface.service.handlers['default'](self)
-        elif self.desc.hasResponse:
+        if self.desc.hasResponse:
             resp =  iface.service.newPacket(self.desc.response.name)
         elif iface.service.autoAck:
             resp = iface.service.newPacket('Ack')
-        else:
-            return 0
+
+        if self.desc.name in iface.service.handlers:
+            iface.service.handlers[self.desc.name](self,resp)
+        elif 'default' in iface.service.handlers:
+            iface.service.handlers['default'](self,resp)
 
 
-        resp.ackFlag = True
-        resp.token = self.token | 0x8000
+        if not resp == 0:
+            resp.ackFlag = True
+            resp.token = self.token | 0x8000
 
         return resp
 
