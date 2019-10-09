@@ -202,7 +202,6 @@ def parseCommand(text):
 def load_sim(service, sim):
     for key, value in sim.handlers.items():
         fx = "def "+ key +"_handler(req, resp):" + value
-        print(fx)
         exec(fx)
         exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
 

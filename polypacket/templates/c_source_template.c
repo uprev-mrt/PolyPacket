@@ -68,7 +68,7 @@ static poly_service_t ${proto.service()};
   *@brief initializes ${proto.prefix}_protocol
   *@param interfaceCount number of interfaces to create
   */
-void ${proto.prefix}_service_init(int interfaceCount)
+void ${proto.prefix}_service_init(int interfaceCount, int depth)
 {
   //initialize core service
   poly_service_init(&${proto.service()},${len(proto.packets) + len(proto.structs)}, interfaceCount);
@@ -136,7 +136,7 @@ void ${proto.prefix}_service_init(int interfaceCount)
 %endif
 % endfor
 
-  poly_service_start(&${proto.service()}, 16);
+  poly_service_start(&${proto.service()}, depth);
 
 }
 

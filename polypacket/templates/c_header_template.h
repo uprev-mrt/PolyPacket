@@ -100,8 +100,9 @@ typedef ${proto.prefix}_packet_t ${proto.prefix}_struct_t;
 /**
   *@brief initializes protocol service
   *@param ifaces number of interfaces to use
+  *@param depth spool size for each interface
   */
-void ${proto.prefix}_service_init(int interfaceCount);
+void ${proto.prefix}_service_init(int interfaceCount, int depth);
 
 /**
   *@brief tears down service
