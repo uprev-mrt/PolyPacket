@@ -357,7 +357,7 @@ class PolyPacket:
         if meta:
             json+= ", \"typeId\": "  + str(self.typeId)
             json+= ", \"token\": \"" + '{:04x}'.format(self.token) + "\""
-            json+= ", \"token\": \"" + '{:04x}'.format(self.checksum) + "\""
+            json+= ", \"checksum\": \"" + '{:04x}'.format(self.checksum) + "\""
             json+= ", \"len\": "  + str(self.dataLen) + " "
 
 
