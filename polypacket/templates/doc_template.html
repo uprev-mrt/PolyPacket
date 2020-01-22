@@ -16,21 +16,41 @@
 <p>${proto.desc}</p>
 
 <br/>
-<hr class="thick">
+<hr class="section">
+<h2 class="right"> Index </h2>
+<hr>
 
-<h2> Packet Types </h2>
-<hr/>
+
+%if len(proto.packets) > 0:
+<a href="#packet_${proto.packets[0].name.lower()}"> Packets:</a>
+
 
 <ul>
   %for packet in proto.packets:
   <li><a href="#packet_${packet.name.lower()}">${"[%0.2X]" % packet.packetId}  ${packet.name} </a></li>
   %endfor
 </ul>
+%endif
 
+%if len(proto.structs) > 0:
+<a href="#packet_${proto.structs[0].name.lower()}"> Structs:</a>
+
+<ul>
+  %for struct in proto.structs:
+  <li><a href="#packet_${struct.name.lower()}">${"[%0.2X]" % struct.packetId}  ${struct.name} </a></li>
+  %endfor
+</ul>
+%endif
+
+
+
+
+<hr class="section">
+
+<h2 class="right"> Packets</h2>
 <hr class="thick">
-
 <div class="packet" id="packet_ping">
-<h2>Ping </h2>
+<h3>Ping </h3>
 <hr/>
 <ul>
   <li class="note">Packet ID: <b>[00]</b></li>
@@ -58,7 +78,7 @@
 </div>
 
 <div class="packet" id="packet_ack">
-<h2>Ack </h2>
+<h3>Ack </h3>
 <hr>
 <ul>
   <li class="note">  Packet ID: <b>[01]</b></li>
@@ -74,7 +94,7 @@
 %for packet in proto.packets:
 %if not packet.standard:
 <div id="packet_${packet.name.lower()}" class="packet">
-<h2>${packet.name} </h2>
+<h3>${packet.name} </h3>
 <hr/>
 <ul>
   <li class="note">  Packet ID: <b>[${"%0.2X" % packet.packetId}]</b></li>
@@ -148,6 +168,92 @@
 </div>
 %endif
 %endfor
+
+%if len(proto.structs) > 0:
+
+<hr class="section">
+<h2 class="right"> Structs</h2>
+<hr class="thick">
+
+%for packet in proto.structs:
+%if not packet.standard:
+<div id="packet_${packet.name.lower()}" class="packet">
+<h3>${packet.name} </h3>
+<hr/>
+<ul>
+  <li class="note">  Packet ID: <b>[${"%0.2X" % packet.packetId}]</b></li>
+  %if packet.hasResponse:
+  <li class="note">   Requests: <a href="#packet_${packet.response.name.lower()}">${packet.response.name}</a></li>
+  %endif
+  %if len(packet.respondsTo) > 0:
+  <li class="note">Responds To: \
+  %for idx,request in enumerate(packet.respondsTo):
+  %if idx == 0:
+  <a href="#packet_${request.lower()}">${request}</a>\
+  %else:
+  , <a href="#packet_${request.lower()}">${request}</a>\
+  %endif
+  %endfor
+  </li>
+  %endif
+</ul>
+
+<p class="desc">${packet.desc}</p>
+<br/>
+%if len(packet.fields) > 0:
+<br/>
+<b>Fields:</b>
+<table class="fields">
+  <tr>
+    <th> Field</th>
+    <th> Type</th>
+    <th> Description</th>
+  </tr>
+  %for field in packet.fields:
+  <tr>
+    %if field.isRequired:
+    <td width=""><b>${field.name}</b></td>
+    %else:
+    <td width="">${field.name}</td>
+    %endif
+    <td width="">  ${field.cType}\
+      %if field.isArray:
+        [${field.arrayLen}]\
+      %endif
+    </td>
+    <td>${field.desc}\
+      %if field.isEnum:
+      <br/>
+      <ul>
+      %for idx,val in enumerate(field.vals):
+      <li class="val">${field.valsFormat % idx} : <b>${val.name}</b> - ${val.desc}</li>
+      %endfor
+      </ul>
+      %endif
+      %if field.isMask:
+      <br/>
+      <ul>
+      %for idx,val in enumerate(field.vals):
+      <li class="val">${field.valsFormat % (1 << idx)} : <b>${val.name}</b> - ${val.desc}</li>
+      %endfor
+      </ul>
+      %endif
+    </td>
+  </tr>
+  %endfor
+</table>
+
+%else:
+## zero data fields
+<span class="note"> This Packet type does not contain any data fields </span><br/>
+%endif
+<br/>
+<hr class="thick">
+</div>
+%endif
+%endfor
+
+%endif
 </div>
 </body>
 <style>
@@ -204,11 +310,17 @@ html *{
   font-family: Arial ;
 }
 
+hr.section {
+  border-style: solid;
+  border-width: 2px;
+  opacity: 1;
+}
 
 
 hr.thick {
   border-style: solid;
-  border-width: 2px;
+  border-width: 1px;
+  border-color: #94b2d3;
   opacity: 1;
 }
 
@@ -246,9 +358,28 @@ h1{
   font-size: 2.5em;
 }
 
-h2{
+h2 
+{
   font-size: 1.8em;
 }
+
+h2.right{
+  text-align: center;
+  font-size: 1.8em;
+}
+
+h3
+{
+  font-size: 1.8em;
+  color: #003366;
+}
+
+h4 
+{
+  font-size: 1.1em;
+  color: #003366;
+}
+
 
 .note{
   font-style: italic;

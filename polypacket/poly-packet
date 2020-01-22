@@ -65,7 +65,7 @@ def onInputChange(buff):
 
             elif word in PROTOCOL.packetIdx:
                 id = PROTOCOL.packetIdx[word]
-                packet = PROTOCOL.packets[id]
+                packet = PROTOCOL.descFromId(id);
                 fields = []
                 for field in packet.fields:
                     fields.append(field.name +":")

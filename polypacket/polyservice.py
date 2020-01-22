@@ -451,6 +451,12 @@ class PolyIface:
         if packet.desc.name == "Ping":
             packet.setField('icd', str(self.service.protocol.crc))
 
+        if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
+            self.print("")
+
+        if not silent:
+            self.print( " --> " + packet.printJSON(self.service.showMeta))
+
         raw = packet.pack()
 
         if self.service.showBytes and not silent:
@@ -460,11 +466,6 @@ class PolyIface:
         encoded = cobs.encode(bytearray(raw))
         encoded += bytes([0])
 
-        if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
-            self.print("")
-
-        if not silent:
-            self.print( " --> " + packet.printJSON(self.service.showMeta))
 
         if hasattr(self, 'coms'):
             self.coms.send(encoded)
