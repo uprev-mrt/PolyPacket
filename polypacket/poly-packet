@@ -221,7 +221,7 @@ def run():
     inputFile = args.input
 
     if inputFile == "":
-        print("No input file specified, use poly-packet -e to create an example file")
+        print("No input file specified, use poly-make -e to create an example file")
         sys.exit()
 
     if os.path.isfile(inputFile):

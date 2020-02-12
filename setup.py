@@ -26,7 +26,8 @@ setuptools.setup(
         'mako',
         'prompt_toolkit',
         'pyyaml',
-        'cobs'
+        'cobs',
+        'serial'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",
