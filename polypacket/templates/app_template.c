@@ -99,7 +99,7 @@ void app_${proto.name.lower()}_init(mrt_uart_handle_t uart_handle)
 %endif
 
   //initialize service
-  ${proto.prefix}_service_init(1);
+  ${proto.prefix}_service_init(1,16);
 
   ${proto.prefix}_service_register_bytes_tx(0, iface0_write);
 

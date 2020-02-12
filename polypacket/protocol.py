@@ -737,82 +737,84 @@ def parseYAML(yamlFile):
         else:
             parseYAMLField(protocol, fieldItem)
 
-    for structItem in objProtocol['structs']:
-        name = list(structItem.keys())[0]
-        struct = list(structItem.values())[0]
-        desc =""
-        newStruct = packetDesc(name,protocol)
+    if 'structs' in  objProtocol:
+        for structItem in objProtocol['structs']:
+            name = list(structItem.keys())[0]
+            struct = list(structItem.values())[0]
+            desc =""
+            newStruct = packetDesc(name,protocol)
 
 
-        if(name in protocol.structIdx):
-            print( 'ERROR Duplicate Struct Name!: ' + name)
+            if(name in protocol.structIdx):
+                print( 'ERROR Duplicate Struct Name!: ' + name)
 
-        if('desc' in struct):
-            desc = struct['desc']
+            if('desc' in struct):
+                desc = struct['desc']
 
-        #get all fields declared for packet
-        if "fields" in struct:
-            for pfieldItem in struct['fields']:
+            #get all fields declared for packet
+            if "fields" in struct:
+                for pfieldItem in struct['fields']:
 
-                if type(pfieldItem) is dict:
-                    pfname = list(pfieldItem.keys())[0]
-                    pfield = list(pfieldItem.values())[0]
-                else:
-                    pfname = pfieldItem
-                    pfield = {}
-
-
-                if pfname in protocol.fieldGroups:
-                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
-                        newStruct.addYAMLField(pfFieldGroupItem)
-                else:
-                    newStruct.addYAMLField(pfieldItem)
-
-        newStruct.desc = desc
-
-        protocol.addStruct(newStruct)
-
-    for packetItem in objProtocol['packets']:
-        name = list(packetItem.keys())[0]
-        packet = list(packetItem.values())[0]
-        desc =""
-        newPacket = packetDesc(name, protocol)
-        newPacket.setPrefix(protocol.prefix)
-
-        if(name in protocol.packetIdx):
-            print( 'ERROR Duplicate Packet Name!: ' + name)
-
-        if('desc' in packet):
-            desc = packet['desc']
-
-        if('response' in packet):
-            if (packet['response'] != "none"):
-                newPacket.requests[packet['response']] = 0
-        else:
-            if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name :
-                newPacket.requests[protocol.defaultResponse] = 0
-
-        #get all fields declared for packet
-        if "fields" in packet:
-            for pfieldItem in packet['fields']:
-
-                if type(pfieldItem) is dict:
-                    pfname = list(pfieldItem.keys())[0]
-                    pfield = list(pfieldItem.values())[0]
-                else:
-                    pfname = pfieldItem
-                    pfield = {}
+                    if type(pfieldItem) is dict:
+                        pfname = list(pfieldItem.keys())[0]
+                        pfield = list(pfieldItem.values())[0]
+                    else:
+                        pfname = pfieldItem
+                        pfield = {}
 
 
-                if pfname in protocol.fieldGroups:
-                    for pfFieldGroupItem in protocol.fieldGroups[pfname]:
-                        newPacket.addYAMLField(pfFieldGroupItem)
-                else:
-                    newPacket.addYAMLField(pfieldItem)
+                    if pfname in protocol.fieldGroups:
+                        for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                            newStruct.addYAMLField(pfFieldGroupItem)
+                    else:
+                        newStruct.addYAMLField(pfieldItem)
 
-        newPacket.desc = desc
+            newStruct.desc = desc
 
-        protocol.addPacket(newPacket)
+            protocol.addStruct(newStruct)
+
+    if 'packets' in  objProtocol:
+        for packetItem in objProtocol['packets']:
+            name = list(packetItem.keys())[0]
+            packet = list(packetItem.values())[0]
+            desc =""
+            newPacket = packetDesc(name, protocol)
+            newPacket.setPrefix(protocol.prefix)
+
+            if(name in protocol.packetIdx):
+                print( 'ERROR Duplicate Packet Name!: ' + name)
+
+            if('desc' in packet):
+                desc = packet['desc']
+
+            if('response' in packet):
+                if (packet['response'] != "none"):
+                    newPacket.requests[packet['response']] = 0
+            else:
+                if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name :
+                    newPacket.requests[protocol.defaultResponse] = 0
+
+            #get all fields declared for packet
+            if "fields" in packet:
+                for pfieldItem in packet['fields']:
+
+                    if type(pfieldItem) is dict:
+                        pfname = list(pfieldItem.keys())[0]
+                        pfield = list(pfieldItem.values())[0]
+                    else:
+                        pfname = pfieldItem
+                        pfield = {}
+
+
+                    if pfname in protocol.fieldGroups:
+                        for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                            newPacket.addYAMLField(pfFieldGroupItem)
+                    else:
+                        newPacket.addYAMLField(pfieldItem)
+
+            newPacket.desc = desc
+
+            protocol.addPacket(newPacket)
 
 
     if 'sims' in  objProtocol: #experimental
@@ -822,9 +824,8 @@ def parseYAML(yamlFile):
             protocol.sims[name] = simulator(name,sim)
 
     for packet in protocol.packets:
-        for request in packet.requests:
-            idx = protocol.packetIdx[request]
-            protocol.packets[idx].respondsTo[packet.name] = 0
+        for request in packet.requests.keys():
+            protocol.getPacket(request).respondsTo[packet.name] = 0
 
     for packet in protocol.packets:
         packet.postProcess()
