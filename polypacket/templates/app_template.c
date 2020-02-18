@@ -169,6 +169,31 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
   ${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});
   %endif
 % endfor
+
+% for field in packet.fields:
+% if field.isEnum:
+  switch(${field.name.lower()})
+  {
+  % for val in field.vals:
+    case ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()}:    // ${val.desc}
+      break;
+  % endfor
+    default:
+      break;
+  }
+
+%endif
+% endfor
+% for field in packet.fields:
+% if field.isMask:
+  % for val in field.vals:
+  if(${field.name.lower()} & ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()})    // ${val.desc}
+  {
+  }
+  %endfor
+
+%endif
+% endfor
 %if packet.hasResponse:
   /*    Set required Fields in response  */
 % for field in packet.response.fields:
