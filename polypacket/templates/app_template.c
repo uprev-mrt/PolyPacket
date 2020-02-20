@@ -63,7 +63,7 @@ static inline void iface0_read()
 
 %else:
   //TODO read bytes from interface to iface0_rx_buf
-  len = MRT_UART_RX(ifac0, iface0_rx_buf, 32);  //read 32 bytes at a time
+  len = MRT_UART_RX(ifac0, iface0_rx_buf, 32, 5);  //read 32 bytes at a time
 %endif
 
   ${proto.prefix}_service_feed(0,iface0_rx_buf, len);

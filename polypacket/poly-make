@@ -99,7 +99,7 @@ def init_args():
     parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
     parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
     parser.add_argument('-c', '--cpp', action='store_true', help='use C++', default=False)
-    parser.add_argument('-e', '--example', action='store_true', help='generates example protocol file', default=False)
+    parser.add_argument('-t', '--template', type=str, help='Template path', default="")
 
 
 
@@ -119,9 +119,9 @@ def main():
     jsPath = args.javascript
 
 
-    if args.example:
+    if args.template:
         print("Creating example protocol file: sample_protocol.yml!")
-        f= open("sample_protocol.yml","wb")
+        f= open(args.template + ".yml","wb")
         f.write(pkgutil.get_data('polypacket','examples/sample_protocol.yml'))
         f.close()
         sys.exit()
