@@ -127,7 +127,6 @@ class fieldDesc:
                 self.arrayLen = int(m.group(1))
             strType = strType[0:m.start()]
 
-
         strType = strType.lower().replace('_t','')
 
         self.setType(strType, self.arrayLen)
@@ -166,6 +165,8 @@ class fieldDesc:
             self.cppType = "string"
             self.isString = True
             self.isArray = True
+            if(self.arrayLen == 1):
+                self.arrayLen = 32 #if no arraylen is specified default 32
         else:
             if(self.isArray):
                 self.cppType = self.cppType +"*"
