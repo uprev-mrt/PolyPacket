@@ -87,7 +87,7 @@ class simulator:
     def __init__(self,name, simItem):
         self.init =""
         self.handlers = {}
-
+        
         if 'init' in simItem:
             self.init = simItem['init']
 

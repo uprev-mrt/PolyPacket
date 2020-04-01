@@ -152,6 +152,8 @@ class PolyField:
 
     def set(self,val):
         self.isPresent = True
+        if type(val) != 'str':
+            val = str(val)
         if self.desc.isArray and not self.desc.isString:
             self.len = len(val)
             self.values = val
@@ -292,9 +294,9 @@ class PolyPacket:
             resp = iface.service.newPacket('Ack')
 
         if self.desc.name in iface.service.handlers:
-            iface.service.handlers[self.desc.name](self,resp)
+            iface.service.handlers[self.desc.name](iface.service,self,resp)
         elif 'default' in iface.service.handlers:
-            iface.service.handlers['default'](self,resp)
+            iface.service.handlers['default'](iface.service, self,resp)
 
 
         if not resp == 0:
@@ -382,20 +384,31 @@ class PolyIface:
             words = connStr.split(':')
 
             if words[0] == 'udp':
-                self.coms = PolyUdp(self, int(words[1]))
-                self.name = "UDP"
-                if len(words) == 3:
-                    self.coms.connect('127.0.0.1', int(words[2]))
-                if len(words) == 4:
-                    self.coms.connect(words[2], int(words[3]))
+                try:
+                    self.coms = PolyUdp(self, int(words[1]))
+                    self.name = "UDP"
+                    if len(words) == 3:
+                        self.coms.connect('127.0.0.1', int(words[2]))
+                    if len(words) == 4:
+                        self.coms.connect(words[2], int(words[3]))
+                    
+                    self.coms.daemon = True
+                    self.coms.start()
+                except:
+                    self.print( "Invalid connection string\n udp:local-port to open a port\n udp:local-port:ip:remote-port to target remote port ")
+
             elif words[0] == 'serial':
-                if len(words) == 2:
-                    self.coms = PolySerial(self,words[1], 9600)
-                if len(words) == 3:
-                    self.coms = PolySerial(self,words[1], words[2])
+                try:
+                    if len(words) == 2:
+                        self.coms = PolySerial(self,words[1], 9600)
+                    if len(words) == 3:
+                        self.coms = PolySerial(self,words[1], words[2])
 
-            self.coms.start()
-
+                    self.coms.daemon = True
+                    self.coms.start()
+                except:
+                    self.print( "Invalid connection string\n serial:/dev/ttyS[COM Number]:baud")
+                    
     def close(self):
         if hasattr(self, 'coms'):
             self.coms.close()
@@ -491,6 +504,7 @@ class PolyService:
         self.handlers = {}
         self.silenceDict = {}
         self.showBytes = False
+        self.dataStore = {}
 
         for packet in protocol.packets:
             self.silenceDict[packet.name] = False

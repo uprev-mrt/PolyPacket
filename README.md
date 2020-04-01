@@ -6,7 +6,6 @@ A python script is used to parse the YAML file and generate C/C++ code as well a
 
 ## Installation
 
-
 The tools can be installed using pip:
 
 ```bash

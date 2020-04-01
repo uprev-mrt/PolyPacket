@@ -99,7 +99,7 @@ kb = KeyBindings()
 
 @kb.add('c-c')
 def _(event):
-    " Quit application. "
+    printToConsole(" Quit application. ")
     SERVICE.close()
     event.app.exit()
 
@@ -200,8 +200,13 @@ def parseCommand(text):
     SERVICE.interfaces[0].sendPacket(newPacket)
 
 def load_sim(service, sim):
+    
+    if sim.init != "":
+        fx = sim.init
+        exec(fx)
+
     for key, value in sim.handlers.items():
-        fx = "def "+ key +"_handler(req, resp):" + value
+        fx = "def "+ key +"_handler(service,req, resp):\n\t" + value.replace('\n','\n\t')+"\n"
         exec(fx)
         exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
 
