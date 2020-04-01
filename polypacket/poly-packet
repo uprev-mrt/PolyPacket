@@ -38,6 +38,8 @@ SERVICE = ''
 
 connect_completer = WordCompleter(['serial:','udp:'],ignore_case=True)
 
+sim_completer = ''
+
 packet_completer = ''
 
 
@@ -56,12 +58,16 @@ style = Style([
 def onInputChange(buff):
     global outputField
     global PROTOCOL
+
     input = buff.text
     if len(input) > 0:
         if input[-1:] == " ":
             word = input.split()[0].strip()
             if word.lower() == 'connect':
                 buff.completer = connect_completer
+            
+            elif word.lower() == 'loadsim':
+                buff.completer = sim_completer
 
             elif word in PROTOCOL.packetIdx:
                 id = PROTOCOL.packetIdx[word]
@@ -139,8 +145,10 @@ def init_args():
     parser = argparse.ArgumentParser("Tool to generate code and documentation for PolyPacket protocol")
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
     parser.add_argument('-c', '--command', nargs='+', help='Commands to execute on start, seperate with ;', default="")
+    parser.add_argument('-s', '--sim', type=str, help='Specify a sim profile to use its behavior, or "none" to not use any', default="default")
     parser.add_argument('-b', '--bytes', action='store_true', help='shows packet bytes', default=False)
     parser.add_argument('-m', '--meta', action='store_true', help='shows packet meta data', default=False)
+    
 
 
 def saveBufferToFile(fileName):
@@ -162,6 +170,7 @@ def printToConsole( text):
 
 def parseCommand(text):
 
+    global PROTOCOL
     words = text.split()
 
     if len(words) == 0:
@@ -182,6 +191,13 @@ def parseCommand(text):
 
     if words[0].lower() == 'silence':
         SERVICE.toggleSilence(words[1])
+        return 0
+    
+    if words[0].lower() == 'loadsim':
+        if words[1] in PROTOCOL.sims:
+            load_sim(SERVICE, PROTOCOL.sims[words[1]])
+        else:
+            printToConsole(" Sim Profile '"+ words[1]+ "' not found..")
         return 0
 
     packetType = words[0].strip()
@@ -209,6 +225,8 @@ def load_sim(service, sim):
         fx = "def "+ key +"_handler(service,req, resp):\n\t" + value.replace('\n','\n\t')+"\n"
         exec(fx)
         exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
+    
+    printToConsole(" Sim Profile '" + sim.name+ "' Loaded ")
 
 def run():
     global parser
@@ -217,6 +235,7 @@ def run():
     global PROTOCOL
     global SERVICE
     global packet_completer
+    global sim_completer
 
     init_args()
     args= parser.parse_args()
@@ -225,12 +244,13 @@ def run():
     #search_field = SearchToolbar()  # For reverse search.
     inputFile = args.input
 
+    simProfile = args.sim
+
     if inputFile == "":
-        print("No input file specified, use poly-make -e to create an example file")
+        print("No input file specified, use poly-make -t to create a template/example file")
         sys.exit()
 
     if os.path.isfile(inputFile):
-        print( "Parsing " + inputFile)
         fileCrc, fileHash = crc(inputFile)
 
         PROTOCOL = buildProtocol(inputFile)
@@ -241,9 +261,6 @@ def run():
         PROTOCOL.hash = fileHash
         PROTOCOL.crc = fileCrc
 
-        for key, value in PROTOCOL.sims.items():
-            if(key == 'default'):
-                load_sim(SERVICE, value)
 
         if args.meta:
             SERVICE.showMeta = True
@@ -253,15 +270,20 @@ def run():
 
 
     packetNames = []
+    simNames = []
     for packet in PROTOCOL.packets:
         packetNames.append(packet.name)
 
     packetNames.append('connect')
     packetNames.append('silence')
     packetNames.append('saveLog')
+    packetNames.append('loadsim')
+
+    for key, value in PROTOCOL.sims.items():
+        simNames.append(key)
 
     packet_completer = WordCompleter(packetNames,ignore_case=True)
-
+    sim_completer = WordCompleter(simNames, ignore_case=True)
     inputBuffer.completer = packet_completer
 
     outputField.text = "" #"Ctrl-C to quit"
@@ -273,6 +295,10 @@ def run():
     outputField.text += "\_|  \___/|_|\__, \_|  \__,_|\___|_|\_\___|\__|    ["+ PROTOCOL.name+ " protocol]\n"
     outputField.text += "              __/ |                            \n"
     outputField.text += "             |___/                             \n"
+
+    
+    if simProfile in PROTOCOL.sims:
+        load_sim(SERVICE, PROTOCOL.sims[simProfile])
 
     if not args.command == '':
         commands = ' '.join(args.command)

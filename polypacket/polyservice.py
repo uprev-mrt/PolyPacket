@@ -134,7 +134,7 @@ class PolyUdp (threading.Thread):
                 if data:
                     if self.host == 0:
                         self.host = address
-                        self.iface.service.print("Connection Accepted: " + str(self.host))
+                        self.iface.service.print(" Connection Accepted: " + str(self.host))
                     #self.iface.print(" <<< " + ''.join(' {:02x}'.format(x) for x in data))
                     self.iface.feedEncodedBytes(data)
             except IOError as e:  # and here it is handeled

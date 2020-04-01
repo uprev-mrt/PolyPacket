@@ -87,6 +87,7 @@ class simulator:
     def __init__(self,name, simItem):
         self.init =""
         self.handlers = {}
+        self.name = name
         
         if 'init' in simItem:
             self.init = simItem['init']
@@ -823,7 +824,7 @@ def parseYAML(yamlFile):
             name = list(simItem.keys())[0]
             sim = list(simItem.values())[0]
             protocol.sims[name] = simulator(name,sim)
-
+    
     for packet in protocol.packets:
         for request in packet.requests.keys():
             protocol.getPacket(request).respondsTo[packet.name] = 0
