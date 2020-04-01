@@ -217,6 +217,8 @@ def parseCommand(text):
 
 def load_sim(service, sim):
     
+    service.handlers.clear() #clear current handlers
+
     if sim.init != "":
         fx = sim.init
         exec(fx)
