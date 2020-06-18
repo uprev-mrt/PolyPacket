@@ -20,9 +20,12 @@
 <h2 class="right"> Index </h2>
 <hr>
 
+<ul>
+  <li><a href="#header"> Packet Header</a></li>
 
 %if len(proto.packets) > 0:
-<a href="#packet_${proto.packets[0].name.lower()}"> Packets:</a>
+
+<li><a href="#packet_${proto.packets[0].name.lower()}"> Packets:</a>
 
 
 <ul>
@@ -39,11 +42,95 @@
   %for struct in proto.structs:
   <li><a href="#packet_${struct.name.lower()}">${"[%0.2X]" % struct.packetId}  ${struct.name} </a></li>
   %endfor
-</ul>
+</ul></li>
 %endif
+</ul>
 
 
 
+<br/>
+<hr class="section">
+
+<div class="packet" id="header">
+
+<h2 class="right"> Packet Header</h2>
+<p>Every Packet has a standard 8 byte header  </p>
+
+<table>
+  <tr>
+      <th> Byte</th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+      <th>6</th>
+      <th>7</th>
+  </tr>
+  <tr>
+      <th> field</th>
+      <td>typeId</td>
+      <td>reserved</td>
+      <td colspan="2">Data Len</td>
+      <td colspan="2">Token</td>
+      <td colspan="2">Checksum</td>
+  </tr>
+  <tr>
+      <th> Type</th>
+      <td>uint8</td>
+      <td>uint8</td>
+      <td colspan="2">uint16</td>
+      <td colspan="2">uint16</td>
+      <td colspan="2">uint16</td>
+  </tr>
+</table>
+
+<br/>
+<br/>
+<b>Fields:</b>
+<table class="fields">
+  <tr>
+    <th> Field</th>
+    <th> Type</th>
+    <th> Description</th>
+  </tr>
+  <tr>
+    <td width=""><b>TypeId</b></td>
+    <td width="">  uint8_t    </td>
+    <td> ID for packet type </td>
+  </tr>
+  <tr>
+    <td width=""><b>Sequence</b></td>
+    <td width=""> uint8_t</td>
+    <td>Sequence number, can be used to ensure packets are not being dropped</td>
+  </tr>
+  <tr>
+    <td width=""><b>Data Length</b></td>
+    <td width="">  uint16_t    </td>
+    <td>Total length of packet payload </td>
+  </tr>
+  <tr>
+    <td width=""><b>Token</b></td>
+    <td width="">  uint16_t  </td>
+    <td>  <br/>
+      <ul>
+      <li class="val">bit 15 : <b>Ack Flag</b></li>
+      <li class="val">bits 14:0 : <b>Random 15bit token</b></li>
+      </ul> <br>
+      New Packets generate a 15 bit token. Responding packets copy the token and set the Ack Flag high. <br>
+      This is used for timeout/retries and packet response handlers
+  </tr>
+  <tr>
+    <td width=""><b>Checksum</b></td>
+    <td width="">  uint16_t  </td>
+    <td>16bit checksum of payload for error checking</td>
+  </tr>
+</table>
+
+<p> For more detailed information on how field data is serialized and encoded see the documentation for the <a href="https://bitbucket.org/uprev/utility-polypacket/src/master/">PolyPacket backend library</a></p>
+</div>
+<br><br>
 
 <hr class="section">
 

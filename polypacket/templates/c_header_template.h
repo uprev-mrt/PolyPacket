@@ -30,7 +30,11 @@ extern "C" {
 /* Enums for ${field.name} field */
 typedef enum{
   % for val in field.vals:
+  %if val.val == None:
   ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()},              /* ${val.desc} */
+  %else:
+  ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()} = ${val.val},              /* ${val.desc} */
+  %endif
   % endfor
   ${proto.prefix.upper()+"_"+field.name.upper()}_MAX_LIMIT
 } ${proto.prefix}_${field.name.lower()}_e;

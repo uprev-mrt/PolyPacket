@@ -101,6 +101,8 @@ class fieldVal:
     def __init__(self, name):
         self.name = name.upper()
         self.desc = ""
+        self.val = None
+        
 
 class fieldDesc:
     def __init__(self, name, strType):
@@ -695,6 +697,9 @@ def parseYAMLField(protocol, fieldItem):
                 val = {}
 
             newVal = fieldVal(name)
+
+            if('val' in val):
+                newVal.val = val['val']
 
             if('desc' in val):
                 newVal.desc = val['desc']

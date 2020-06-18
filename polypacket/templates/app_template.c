@@ -172,7 +172,7 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
 
 % for field in packet.fields:
 % if field.isEnum:
-  switch(${field.name.lower()})
+  switch(${field.name})
   {
   % for val in field.vals:
     case ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()}:    // ${val.desc}
@@ -187,7 +187,7 @@ HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(${proto.prefix}_packet
 % for field in packet.fields:
 % if field.isMask:
   % for val in field.vals:
-  if(${field.name.lower()} & ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()})    // ${val.desc}
+  if(${field.name} & ${proto.prefix.upper()+"_"+field.name.upper() + "_" + val.name.upper()})    // ${val.desc}
   {
   }
   %endfor
