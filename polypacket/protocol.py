@@ -107,10 +107,12 @@ class fieldVal:
 class fieldDesc:
     def __init__(self, name, strType):
         self.vals = []
+        self.valDict = {}
         self.arrayLen = 1
         self.isEnum = False
         self.isMask = False
         self.valsFormat = "0x%0.2X"
+        self.valIndex = 0
 
         self.format = 'FORMAT_DEFAULT'
 
@@ -175,9 +177,12 @@ class fieldDesc:
                 self.cppType = self.cppType +"*"
 
     def addVal(self, val):
-        self.vals.append(val)
+ 
+        self.valDict[val.name] = len(self.vals) -1
 
         if self.isMask:
+            val.val = 1 << self.valIndex
+            self.valIndex+=1
             strType = 'uint8'
             if len(self.vals) > 8:
                 self.valsFormat = "0x%0.4X"
@@ -188,6 +193,14 @@ class fieldDesc:
             if len(self.vals) > 32:
                 print( "Error maximum flags per field is 32")
             self.setType(strType,1)
+        
+        elif self.isEnum:
+            val.val =  self.valIndex
+            self.valIndex+=1
+
+        self.valDict[val.name] = val.val
+        self.vals.append(val)
+    
 
     def setPrefix(self, prefix):
         self.globalName = prefix.upper()+"_FIELD_"+self.name.upper()
@@ -450,6 +463,9 @@ class protocolDesc:
 
     def descFromId(self, typeId):
         return self.packets[typeId-len(self.structs)]
+
+    def fieldDescFromId(self, typeId):
+        return self.fields[typeId]
 
     def camelPrefix(self):
         return self.prefix[:1].capitalize() + self.prefix[1:]

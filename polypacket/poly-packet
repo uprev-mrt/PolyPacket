@@ -34,6 +34,9 @@ parser = None
 PROTOCOL = ''
 SERVICE = ''
 
+compFields = [] 
+compVals = []
+
 
 
 connect_completer = WordCompleter(['serial:','udp:'],ignore_case=True)
@@ -58,25 +61,43 @@ style = Style([
 def onInputChange(buff):
     global outputField
     global PROTOCOL
+    global compFields
+    global compVals
 
     input = buff.text
     if len(input) > 0:
         if input[-1:] == " ":
             word = input.split()[0].strip()
+            lastWord = input.split()[-1].strip()
+
             if word.lower() == 'connect':
                 buff.completer = connect_completer
             
             elif word.lower() == 'loadsim':
                 buff.completer = sim_completer
 
+            elif lastWord.replace(':','') in PROTOCOL.fieldIdx:
+                lastWord = lastWord.replace(':','')
+                id = PROTOCOL.fieldIdx[lastWord]
+                field = PROTOCOL.fields[id]
+                compVals = []
+                for val in field.vals:
+                    compVals.append(val.name)
+                buff.completer = WordCompleter(compVals,ignore_case=True )
+
             elif word in PROTOCOL.packetIdx:
                 id = PROTOCOL.packetIdx[word]
                 packet = PROTOCOL.descFromId(id);
-                fields = []
+                compFields = []
                 for field in packet.fields:
-                    fields.append(field.name +":")
+                    compFields.append(field.name +":")
 
-                buff.completer = WordCompleter(fields,ignore_case=True )
+                buff.completer = WordCompleter(compFields,ignore_case=True )
+
+        
+        if input[-1:] == ",":
+
+                buff.completer = WordCompleter(compFields,ignore_case=True )
 
 # The layout
 inputBuffer = Buffer( complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
@@ -209,10 +230,11 @@ def parseCommand(text):
         fields = Pattern.split(text[len(packetType):])
 
         for field in fields:
-            subFields = field.split(':')
-            fname = subFields[0].strip()
-            val = subFields[1].strip()
-            newPacket.setField(fname, val)
+            if field != None:
+                subFields = field.split(':')
+                fname = subFields[0].strip()
+                val = subFields[1].strip()
+                newPacket.setField(fname, val)
 
     SERVICE.interfaces[0].sendPacket(newPacket)
 

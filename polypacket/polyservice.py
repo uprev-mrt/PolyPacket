@@ -154,20 +154,25 @@ class PolyField:
         self.isPresent = True
         if type(val) != 'str':
             val = str(val)
-        if self.desc.isArray and not self.desc.isString:
-            val = val.replace('[','').replace(']','')
-            arrVal = val.split(',')
-            self.len = len(arrVal)
-            self.values = []
-            for v in arrVal:
-                self.values.append( int(v, 0))
+
+        if val in self.desc.valDict:
+            self.len = 1
+            self.values[0] = self.desc.valDict[val]
         else:
-            if self.desc.isString:
-                self.len = len(val)
-                self.values[0] = val
+            if self.desc.isArray and not self.desc.isString:
+                val = val.replace('[','').replace(']','')
+                arrVal = val.split(',')
+                self.len = len(arrVal)
+                self.values = []
+                for v in arrVal:
+                    self.values.append( int(v, 0))
             else:
-                self.len = 1
-                self.values[0] = int(val, 0)
+                if self.desc.isString:
+                    self.len = len(val)
+                    self.values[0] = val
+                else:
+                    self.len = 1
+                    self.values[0] = int(val, 0)
 
 
     def get(self):
