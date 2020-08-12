@@ -155,8 +155,12 @@ class PolyField:
         if type(val) != 'str':
             val = str(val)
         if self.desc.isArray and not self.desc.isString:
-            self.len = len(val)
-            self.values = val
+            val = val.replace('[','').replace(']','')
+            arrVal = val.split(',')
+            self.len = len(arrVal)
+            self.values = []
+            for v in arrVal:
+                self.values.append( int(v, 0))
         else:
             if self.desc.isString:
                 self.len = len(val)
@@ -213,6 +217,7 @@ class PolyField:
 
     def pack(self, id):
         byteArr = bytes([])
+
         strFormat = "<" + str(self.len)+ self.desc.pyFormat
 
         byteArr += packVarSize(id)

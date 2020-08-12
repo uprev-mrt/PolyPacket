@@ -205,7 +205,8 @@ def parseCommand(text):
     newPacket = SERVICE.newPacket(packetType)
 
     if len(words) > 1:
-        fields = text[len(packetType):].split(',')
+        Pattern = re.compile(r',(?=(((?!\]).)*\[)|[^\[\]]*$)') #splits by commas, ignoring commas in brackets
+        fields = Pattern.split(text[len(packetType):])
 
         for field in fields:
             subFields = field.split(':')

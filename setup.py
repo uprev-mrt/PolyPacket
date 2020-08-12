@@ -26,7 +26,8 @@ setuptools.setup(
         'prompt_toolkit',
         'pyyaml',
         'cobs',
-        'pyserial'
+        'pyserial',
+        'update_notipy'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",
