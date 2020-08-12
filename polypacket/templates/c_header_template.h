@@ -265,7 +265,11 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
 *******************************************************************************/
 % for field in proto.fields:
   %if field.isArray:
+    %if field.isString:
 void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, const ${field.getParamType()} val);
+    %else:
+void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, const ${field.getParamType()} val, uint32_t len);
+    % endif
   % else:
 void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val);
   % endif
@@ -285,7 +289,7 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 
 % for field in proto.fields:
   %if field.isArray:
-void ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val);
+uint32_t ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val);
   % else:
 ${field.getParamType()} ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet);
   % endif

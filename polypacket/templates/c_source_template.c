@@ -392,12 +392,21 @@ HandlerStatus_e ${proto.prefix}_send(int iface, ${proto.prefix}_packet_t* packet
 
 % for field in proto.fields:
 %if field.isArray:
+  %if field.isString:
 /**
   *@brief Sets value(s) in ${field.name} field
   *@param packet ptr to ${proto.prefix}_packet
   *@param val ${field.getParamType()} to copy data from
   */
 void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, const ${field.getParamType()} val)
+  %else:
+/**
+  *@brief Sets value(s) in ${field.name} field
+  *@param packet ptr to ${proto.prefix}_packet
+  *@param val ${field.getParamType()} to copy data from
+  */
+void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, const ${field.getParamType()} val, uint32_t len)
+  % endif
 % else:
 /**
   *@brief Sets value of ${field.name} field
@@ -408,9 +417,9 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 %endif
 {
 %if field.isArray:
-  poly_packet_set_field(packet, ${field.globalName}, val);
+  poly_packet_set_field(packet, ${field.globalName}, val, len);
 % else:
-  poly_packet_set_field(packet, ${field.globalName}, &val);
+  poly_packet_set_field(packet, ${field.globalName}, &val, 1);
 % endif
 }
 
@@ -435,15 +444,15 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
   */
 %endif
 %if field.isArray:
-void ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val)
+uint32_t ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet, ${field.getParamType()} val)
 {
-  poly_packet_get_field(packet, ${field.globalName}, val);
+  return poly_packet_get_field(packet, ${field.globalName}, val);
 }
 % else:
 ${field.getParamType()} ${proto.prefix}_get${field.camel()}(${proto.prefix}_packet_t* packet)
 {
   ${field.getParamType()} val;
-  poly_packet_get_field(packet, ${field.globalName}, &val);
+  poly_packet_get_field(packet, ${field.globalName}, &val );
   return val;
 }
 % endif
