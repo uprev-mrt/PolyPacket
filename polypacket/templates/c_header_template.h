@@ -311,12 +311,35 @@ HandlerStatus_e ${proto.prefix}_sendPing(int iface);
 
 % for packet in proto.packets:
 %if not packet.standard:
+/**
+  *@brief sends ${packet.name} packet
+  *@param iface indec of interface to send packet to
+  %for field in packet.fields:
+  %if field.isRequired:
+  %if field.isArray:
+     %if field.isString:
+  *@param ${field.name} ${field.getParamType()} to ${field.name} field from
+     %else: 
+  *@param ${field.name} ${field.getParamType()} to ${field.name} field from
+  *@param ${field.name}_len number of objects in ${field.name} 
+     %endif
+  %else:
+  *@param ${field.name} value to set ${field.name} field to
+  %endif
+  %endif
+  %endfor
+  *@return ${proto.prefix}_status send attempt
+  */
 HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
   %for idx,field in enumerate(packet.fields):
   %if field.isRequired:
 ,\
   %if field.isArray:
+  %if field.isString:
  const ${field.getParamType()} ${field.name}\
+  %else:
+ const ${field.getParamType()} ${field.name} ,int ${field.name}_len \
+  %endif
   %else:
  ${field.getParamType()} ${field.name}\
   %endif

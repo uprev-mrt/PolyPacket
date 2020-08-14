@@ -417,7 +417,11 @@ void ${proto.prefix}_set${field.camel()}(${proto.prefix}_packet_t* packet, ${fie
 %endif
 {
 %if field.isArray:
+  %if field.isString:
+  poly_packet_set_field(packet, ${field.globalName}, val, strlen(val));
+  %else:
   poly_packet_set_field(packet, ${field.globalName}, val, len);
+  %endif
 % else:
   poly_packet_set_field(packet, ${field.globalName}, &val, 1);
 % endif
@@ -478,26 +482,16 @@ HandlerStatus_e ${proto.prefix}_sendPing(int iface)
 
 % for packet in proto.packets:
 %if not packet.standard:
-/**
-  *@brief sends ${packet.name} packet
-  *@param iface indec of interface to send packet to
-  %for field in packet.fields:
-  %if field.isRequired:
-  %if field.isArray:
-  *@param ${field.name} ${field.getParamType()} to ${field.name} field from
-  %else:
-  *@param ${field.name} value to set ${field.name} field to
-  %endif
-  %endif
-  %endfor
-  *@return ${proto.prefix}_status send attempt
-  */
 HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
   %for idx,field in enumerate(packet.fields):
   %if field.isRequired:
 ,\
   %if field.isArray:
+    %if field.isString:
  const ${field.getParamType()} ${field.name}\
+    %else:
+ const ${field.getParamType()} ${field.name} ,int ${field.name}_len \
+    %endif
   %else:
  ${field.getParamType()} ${field.name}\
   %endif
@@ -584,7 +578,11 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(
 % for field in packet.fields:
 %if field.isRequired:
   %if field.isArray:
+    %if field.isString:
   //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name});
+    %else :
+  //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name}, );
+    %endif
   %else:
   //${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});
   %endif
