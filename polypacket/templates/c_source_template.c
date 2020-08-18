@@ -507,7 +507,11 @@ HandlerStatus_e ${proto.prefix}_send${packet.camel()}(int iface\
   //set fields
   %for field in packet.fields:
   %if field.isRequired:
+  %if field.isArray and not field.isString:
+  ${proto.prefix}_set${field.camel()}(&packet, ${field.name}, ${field.name}_len);
+  %else:
   ${proto.prefix}_set${field.camel()}(&packet, ${field.name});
+  %endif
   %endif
   %endfor
 
@@ -570,23 +574,20 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_${packet.camel()}_handler(
 {
   /*  Get Required Fields in packet */
 % for field in packet.fields:
-%if field.isRequired:
   //${field.getDeclaration()};  //${field.desc}
-%endif
 %endfor
 
 % for field in packet.fields:
-%if field.isRequired:
+
   %if field.isArray:
     %if field.isString:
   //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name});
     %else :
-  //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name}, );
+  //${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name}, ${field.name},  );
     %endif
   %else:
   //${field.name} = ${proto.prefix}_get${field.camel()}(${proto.prefix}_${packet.name});
   %endif
-%endif
 % endfor
 %if packet.hasResponse:
   /*    Set required Fields in response  */
