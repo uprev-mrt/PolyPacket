@@ -28,6 +28,7 @@ from polypacket.polyservice import *
 import sys
 import os
 import argparse
+import time
 
 args = None
 parser = None
@@ -63,9 +64,10 @@ def onInputChange(buff):
     global PROTOCOL
     global compFields
     global compVals
+    global packet_completer
 
-    input = buff.text
-    if len(input) > 0:
+    input = buff.text.split(';')[-1] #only worry about lastest command
+    if len(input.strip()) > 0:
         if input[-1:] == " ":
             word = input.split()[0].strip()
             lastWord = input.split()[-1].strip()
@@ -94,11 +96,13 @@ def onInputChange(buff):
 
                 buff.completer = WordCompleter(compFields,ignore_case=True )
 
-        
-        if input[-1:] == ",":
+        elif input[-1] == ';':
+                buff.completer = packet_completer
 
-                buff.completer = WordCompleter(compFields,ignore_case=True )
-
+        elif input[-1] == ",":
+            buff.completer = WordCompleter(compFields,ignore_case=True )
+    else: 
+        buff.completer = packet_completer
 # The layout
 inputBuffer = Buffer( complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
 #inputBuffer.text = 'SendCmd src: 45, dst: 32, cmd: 4'
@@ -143,7 +147,10 @@ def accept(buff):
     global packet_completer
     #new_text =outputField.text + "\n"+ inputBuffer.text
     #outputField.text = new_text
-    parseCommand(inputBuffer.text)
+    commands = inputBuffer.text.split(';')
+    for cmd in commands:
+        parseCommand(cmd)
+        time.sleep(0.05)
     #inputBuffer.text = '>>> '
     inputBuffer.completer = packet_completer
 
@@ -192,6 +199,7 @@ def printToConsole( text):
 def parseCommand(text):
 
     global PROTOCOL
+    text = text.strip()
     words = text.split()
 
     if len(words) == 0:
@@ -228,7 +236,7 @@ def parseCommand(text):
     if len(words) > 1:
         Pattern = re.compile(r',(?!(?:[^[]*\[[^]]*\])*[^[\]]*\])\s*') #splits by commas, ignoring commas in brackets
         fields = Pattern.split(text[len(packetType):])
-       # print(fields)
+        #printToConsole(str(fields))
 
         for field in fields:
             if field != None:

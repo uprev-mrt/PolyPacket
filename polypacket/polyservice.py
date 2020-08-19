@@ -80,7 +80,8 @@ class PolySerial (threading.Thread):
 
     def __del__(self):
         self.close()
-        threading.Thread.__del__(self)
+        self.join()     #stop thread
+
 
     def close(self):
         if self.opened:
