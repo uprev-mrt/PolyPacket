@@ -292,6 +292,10 @@ class PolyPacket:
 
         #dont respond to acks
         if self.ackFlag:
+            if self.desc.name in iface.service.handlers:
+                iface.service.handlers[self.desc.name](iface.service,self,None )
+            elif 'default' in iface.service.handlers:
+                iface.service.handlers['default'](iface.service, self,None)
             return 0
 
         if not iface.service.autoAck:
