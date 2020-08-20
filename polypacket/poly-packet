@@ -86,8 +86,11 @@ def onInputChange(buff):
                 for val in field.vals:
                     compVals.append(val.name)
                 buff.completer = WordCompleter(compVals,ignore_case=True )
+            
+            elif '|' in lastWord:
+                pass
 
-            elif word in PROTOCOL.packetIdx:
+            elif lastWord in PROTOCOL.packetIdx:
                 id = PROTOCOL.packetIdx[word]
                 packet = PROTOCOL.descFromId(id);
                 compFields = []

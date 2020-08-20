@@ -171,6 +171,15 @@ class PolyField:
                 if self.desc.isString:
                     self.len = len(val)
                     self.values[0] = val
+                    
+                elif self.desc.isMask and '|' in val:
+                    self.len = 1
+                    self.values[0] = 0
+                    arrVals = val.split('|')
+                    for v in arrVals:
+                        v = v.strip()
+                        if v in self.desc.valDict:
+                            self.values[0] = self.values[0] | self.desc.valDict[v]
                 else:
                     self.len = 1
                     self.values[0] = int(val, 0)
