@@ -23,6 +23,7 @@ import serial
 
 
 
+
 def packVarSize(value):
     bytes = bytearray([])
     tmp =0
@@ -114,7 +115,7 @@ class PolyUdp (threading.Thread):
 
     def __del__(self):
         self.socket.close()
-        threading.Thread.__del__(self)
+        self.join()
 
     def close(self):
         self.socket.close()
@@ -171,7 +172,7 @@ class PolyField:
                 if self.desc.isString:
                     self.len = len(val)
                     self.values[0] = val
-                    
+
                 elif self.desc.isMask and '|' in val:
                     self.len = 1
                     self.values[0] = 0
@@ -404,22 +405,49 @@ class PolyIface:
         self.name = ""
         self.lastToken = 0
 
+
         if not connStr == "":
-            words = connStr.split(':')
+            words = connStr.split(':')  
+            localPort = 1738    #default to 1738
+            remotePort = 0
+            remoteHost = '127.0.0.1'
+
+            #udp:local_port:remote_port
+            #udp:local_port:remote_ip:remote_port
+            #udp:remote_ip:remote_port
 
             if words[0] == 'udp':
                 try:
-                    self.coms = PolyUdp(self, int(words[1]))
+                    if(words[1].isnumeric()): 
+                        localPort = int(words[1])
+                        if len(words) == 2:              #udp:remote_port
+                            remotePort = int(words[1])
+                        if len(words) == 3:              #udp:local_port:remote_port
+                            localPort = int(words[1])
+                            remotePort = int(words[2])
+                        if len(words) == 4:              #udp:local_port:remote_ip:remote_port
+                            remoteHost = words[2]
+                            remotePort = int(words[3])
+                    else:                                #udp:remote_ip:remote_port
+                        remoteHost = words[1]
+                        remotePort = int(words[2])
+
+
+                    self.coms = PolyUdp(self, localPort)
                     self.name = "UDP"
-                    if len(words) == 3:
-                        self.coms.connect('127.0.0.1', int(words[2]))
-                    if len(words) == 4:
-                        self.coms.connect(words[2], int(words[3]))
+                    self.coms.connect(remoteHost, remotePort)
                     
                     self.coms.daemon = True
                     self.coms.start()
                 except:
-                    self.print( "Invalid connection string\n udp:local-port to open a port\n udp:local-port:ip:remote-port to target remote port ")
+                    udp_help = ""
+                    udp_help+= "Invalid connection string. Options:\n"
+                    udp_help+= "\t[udp:local-port] to listen on a port\n"
+                    udp_help+= "\t[udp:host:remote-port] to target remote port on a host and use the default local port\n"
+                    udp_help+= "\t[udp:local-port:host:remote-port] to target remote port on host and specify local hose\n"
+                    udp_help+= "\t[udp:remote-port] to target port on local host\n"
+                    udp_help+= "\t[udp:local-port:remote-port] to target port on local host, specifying local port\n"
+                    self.print( udp_help)
 
             elif words[0] == 'serial':
                 try:
