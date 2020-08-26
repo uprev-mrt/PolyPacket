@@ -100,6 +100,58 @@ class PolySerial (threading.Thread):
                     data = self.serialPort.read()
                     self.iface.feedEncodedBytes(data)
 
+class PolyTcp (threading.Thread):
+    def __init__(self, iface, localPort ):
+        threading.Thread.__init__(self)
+        self.iface = iface
+        self.localPort = localPort
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+       # self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.setblocking(0)
+        self.socket.bind(("127.0.0.1", self.localPort))
+        self.iface.print(self.iface.name + " Listening on port: " + str(self.socket.getsockname()[1]))
+        self.host = 0
+        self.server = server
+
+    def __del__(self):
+        self.socket.close()
+        self.join()
+
+    def close(self):
+        self.socket.close()
+
+    def connect(self, hostIp, hostPort):
+        self.iface.print(self.iface.name + " Connecting to " + hostIp + ":"+str(hostPort))
+        self.host = (hostIp, hostPort)
+        try:
+            self.socket.connect(self.host)
+        except Exception  as e:
+            self.iface.print(str(e))
+
+    def send(self, data):
+        if not self.host == 0:
+            try:
+                #self.iface.print(str(self.host))
+                #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
+                self.socket.send(data)
+            except Exception  as e:
+                self.iface.print(str(e))
+
+    def run(self):
+
+        self.socket.listen()
+        while True:
+            try:
+                data, address = self.socket.recv(1024)
+                if data:
+                    if self.host == 0:
+                        self.host = address
+                        self.iface.service.print(" Connection Accepted: " + str(self.host))
+                    #self.iface.print(" <<< " + ''.join(' {:02x}'.format(x) for x in data))
+                    self.iface.feedEncodedBytes(data)
+            except IOError as e:  # and here it is handeled
+                if e.errno == errno.EWOULDBLOCK:
+                    pass
 
 class PolyUdp (threading.Thread):
     def __init__(self, iface, localPort ):
@@ -109,8 +161,8 @@ class PolyUdp (threading.Thread):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.setblocking(0)
-        self.socket.bind(("127.0.0.1", self.localPort))
-        self.iface.print(self.iface.name + " Listening on port: " + str(localPort))
+        self.socket.bind(("0.0.0.0", self.localPort))
+        self.iface.print(self.iface.name + " Listening on port: " + str(self.socket.getsockname()[1]))
         self.host = 0
 
     def __del__(self):
@@ -126,8 +178,12 @@ class PolyUdp (threading.Thread):
 
     def send(self, data):
         if not self.host == 0:
-            #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
-            self.socket.sendto(data, self.host)
+            try:
+                #self.iface.print(str(self.host))
+                #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
+                self.socket.sendto(data, self.host)
+            except Exception  as e:
+                self.iface.print(str(e))
 
     def run(self):
         while True:
@@ -408,8 +464,8 @@ class PolyIface:
 
         if not connStr == "":
             words = connStr.split(':')  
-            localPort = 1738    #default to 1738
-            remotePort = 0
+            localPort = 0    #randomly picks a free port
+            remotePort = -1
             remoteHost = '127.0.0.1'
 
             #udp:local_port:remote_port
@@ -420,8 +476,6 @@ class PolyIface:
                 try:
                     if(words[1].isnumeric()): 
                         localPort = int(words[1])
-                        if len(words) == 2:              #udp:remote_port
-                            remotePort = int(words[1])
                         if len(words) == 3:              #udp:local_port:remote_port
                             localPort = int(words[1])
                             remotePort = int(words[2])
@@ -432,13 +486,6 @@ class PolyIface:
                         remoteHost = words[1]
                         remotePort = int(words[2])
 
-
-                    self.coms = PolyUdp(self, localPort)
-                    self.name = "UDP"
-                    self.coms.connect(remoteHost, remotePort)
-                    
-                    self.coms.daemon = True
-                    self.coms.start()
                 except:
                     udp_help = ""
                     udp_help+= "Invalid connection string. Options:\n"
@@ -448,6 +495,47 @@ class PolyIface:
                     udp_help+= "\t[udp:remote-port] to target port on local host\n"
                     udp_help+= "\t[udp:local-port:remote-port] to target port on local host, specifying local port\n"
                     self.print( udp_help)
+
+                self.coms = PolyUdp(self, localPort)
+                self.name = "UDP"
+                if remotePort > -1:
+                    self.coms.connect(remoteHost, remotePort)
+                
+                self.coms.daemon = True
+                self.coms.start()
+            
+            if words[0] == 'tcp':
+                self.print( "***WARNING*** TCP mode under construction")
+                try:
+                    if(words[1].isnumeric()): 
+                        localPort = int(words[1])
+                        if len(words) == 3:              #udp:local_port:remote_port
+                            localPort = int(words[1])
+                            remotePort = int(words[2])
+                        if len(words) == 4:              #udp:local_port:remote_ip:remote_port
+                            remoteHost = words[2]
+                            remotePort = int(words[3])
+                    else:                                #udp:remote_ip:remote_port
+                        remoteHost = words[1]
+                        remotePort = int(words[2])
+
+                except:
+                    tcp_help = ""
+                    tcp_help+= "Invalid connection string. Options:\n"
+                    tcp_help+= "\t[tcp:local-port] to listen on a port\n"
+                    tcp_help+= "\t[tcp:host:remote-port] to target remote port on a host and use the default local port\n"
+                    tcp_help+= "\t[tcp:local-port:host:remote-port] to target remote port on host and specify local hose\n"
+                    tcp_help+= "\t[tcp:remote-port] to target port on local host\n"
+                    tcp_help+= "\t[tcp:local-port:remote-port] to target port on local host, specifying local port\n"
+                    self.print( tcp_help)
+
+                self.coms = PolyTcp(self, localPort)
+                self.name = "TCP"
+                if remotePort > -1:
+                    self.coms.connect(remoteHost, remotePort)
+                
+                self.coms.daemon = True
+                self.coms.start()
 
             elif words[0] == 'serial':
                 try:

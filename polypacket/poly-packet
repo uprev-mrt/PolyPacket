@@ -40,7 +40,7 @@ compVals = []
 
 
 
-connect_completer = WordCompleter(['serial:','udp:'],ignore_case=True)
+connect_completer = WordCompleter(['serial:','udp:','tcp:'],ignore_case=True)
 
 sim_completer = ''
 
