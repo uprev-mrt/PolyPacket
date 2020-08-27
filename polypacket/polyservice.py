@@ -396,6 +396,10 @@ class PolyPacket:
             resp =  iface.service.newPacket(self.desc.response.name)
         elif iface.service.autoAck:
             resp = iface.service.newPacket('Ack')
+        
+        #acks responding to pings get an icd field
+        if self.typeId == 0:
+                resp.setField('icd', str(self.protocol.crc))
 
         if self.desc.name in iface.service.handlers:
             iface.service.handlers[self.desc.name](iface.service,self,resp)
@@ -411,7 +415,7 @@ class PolyPacket:
 
     def parse(self, rawBytes):
         self.raw = rawBytes
-        idx =0;
+        idx =0
         #pull in header
         self.typeId = rawBytes[0]
         self.seq = rawBytes[1]
@@ -597,8 +601,11 @@ class PolyIface:
 
             decoded = cobs.decode(encodedPacket)
 
-            newPacket.parse(decoded)
-
+            try:
+                newPacket.parse(decoded)
+            except Exception  as e:
+                self.print(str(e))
+                
             if self.service.silenceDict[newPacket.desc.name]:
                 silent = True
 

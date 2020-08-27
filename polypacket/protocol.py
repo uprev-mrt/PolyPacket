@@ -522,6 +522,7 @@ def addStandardPackets(protocol):
     ack.standard = True
     protocol.addField(icd)
     ping.addField(icd)
+    ack.addField(icd)
     protocol.addPacket(ping)
     protocol.addPacket(ack)
 
