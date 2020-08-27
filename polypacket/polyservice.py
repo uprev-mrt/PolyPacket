@@ -106,12 +106,10 @@ class PolyTcp (threading.Thread):
         self.iface = iface
         self.localPort = localPort
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-       # self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.setblocking(0)
-        self.socket.bind(("127.0.0.1", self.localPort))
-        self.iface.print(self.iface.name + " Listening on port: " + str(self.socket.getsockname()[1]))
         self.host = 0
-        self.server = server
+        self.mode = 'server'
+        self.connection = None 
+        self.client_address = None
 
     def __del__(self):
         self.socket.close()
@@ -123,35 +121,60 @@ class PolyTcp (threading.Thread):
     def connect(self, hostIp, hostPort):
         self.iface.print(self.iface.name + " Connecting to " + hostIp + ":"+str(hostPort))
         self.host = (hostIp, hostPort)
+        self.mode = 'client'
         try:
             self.socket.connect(self.host)
         except Exception  as e:
             self.iface.print(str(e))
+    
+    def listen(self):
+        try:
+            self.socket.bind((socket.gethostname(), self.localPort))
+            self.socket.listen(1)
+            self.iface.print(" TCP Listening on port: " + str(self.socket.getsockname()[1]))
+        except Exception  as e:
+            self.iface.print(str(e))
 
     def send(self, data):
-        if not self.host == 0:
-            try:
-                #self.iface.print(str(self.host))
-                #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
-                self.socket.send(data)
-            except Exception  as e:
-                self.iface.print(str(e))
+        try:
+            # self.iface.print(str(self.host))
+            # self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
+            if self.mode == 'server':
+                self.connection.sendall(data)
+            else:
+                self.socket.sendall(data)
+        except Exception  as e:
+            self.iface.print(str(e))
 
     def run(self):
 
-        self.socket.listen()
-        while True:
-            try:
-                data, address = self.socket.recv(1024)
-                if data:
-                    if self.host == 0:
-                        self.host = address
-                        self.iface.service.print(" Connection Accepted: " + str(self.host))
-                    #self.iface.print(" <<< " + ''.join(' {:02x}'.format(x) for x in data))
-                    self.iface.feedEncodedBytes(data)
-            except IOError as e:  # and here it is handeled
-                if e.errno == errno.EWOULDBLOCK:
-                    pass
+        if self.mode == 'server':
+            while True:
+                self.connection, self.client_address = self.socket.accept()
+                self.iface.service.print(" Connection Accepted: " + str(self.client_address))
+                while True:
+                    try:
+                        data = self.connection.recv(1024)
+                        if data:
+                            self.iface.feedEncodedBytes(data)
+                        else:
+                            break
+                    except IOError as e:  # and here it is handeled
+                        self.iface.service.print(str(e))
+                        break
+                self.iface.service.print(" TCP Disconnected")
+                self.connection.close()
+        else :#client
+            while True:
+                try:
+                    data = self.socket.recv(1024)
+                    if data:
+                        self.iface.feedEncodedBytes(data)
+                except IOError as e:  # and here it is handeled
+                    self.iface.service.print(str(e))
+                    break
+                    if e.errno == errno.EWOULDBLOCK:
+                        pass
 
 class PolyUdp (threading.Thread):
     def __init__(self, iface, localPort ):
@@ -162,7 +185,7 @@ class PolyUdp (threading.Thread):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.setblocking(0)
         self.socket.bind(("0.0.0.0", self.localPort))
-        self.iface.print(self.iface.name + " Listening on port: " + str(self.socket.getsockname()[1]))
+        self.iface.print(" UDP Listening on port: " + str(self.socket.getsockname()[1]))
         self.host = 0
 
     def __del__(self):
@@ -505,17 +528,10 @@ class PolyIface:
                 self.coms.start()
             
             if words[0] == 'tcp':
-                self.print( "***WARNING*** TCP mode under construction")
                 try:
-                    if(words[1].isnumeric()): 
-                        localPort = int(words[1])
-                        if len(words) == 3:              #udp:local_port:remote_port
-                            localPort = int(words[1])
-                            remotePort = int(words[2])
-                        if len(words) == 4:              #udp:local_port:remote_ip:remote_port
-                            remoteHost = words[2]
-                            remotePort = int(words[3])
-                    else:                                #udp:remote_ip:remote_port
+                    if(words[1].isnumeric()):           #tcp:local_port
+                        localPort = int(words[1])   
+                    else:                                #tcp:remote_ip:remote_port
                         remoteHost = words[1]
                         remotePort = int(words[2])
 
@@ -531,7 +547,9 @@ class PolyIface:
 
                 self.coms = PolyTcp(self, localPort)
                 self.name = "TCP"
-                if remotePort > -1:
+                if remotePort == -1:    #server mode
+                    self.coms.listen()
+                else:                   #client mode 
                     self.coms.connect(remoteHost, remotePort)
                 
                 self.coms.daemon = True
