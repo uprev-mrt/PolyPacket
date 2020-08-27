@@ -538,7 +538,9 @@ __attribute__((weak)) HandlerStatus_e ${proto.prefix}_Ping_handler(${proto.prefi
 {
   /* Ack token has already been set as ping token with POLY_ACK_FLAG*/
   uint32_t icd_hash = ${proto.prefix}_getIcd(${proto.prefix}_ping);
-  assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH );
+  ${proto.prefix}_setIcd(${proto.prefix}_ack, ${proto.prefix.upper()}_SERVICE_HASH);
+  
+  //assert(icd_hash == ${proto.prefix.upper()}_SERVICE_HASH );
 
   return PACKET_HANDLED;
 }

@@ -171,8 +171,19 @@
   <li class="note">  Packet ID: <b>[01]</b></li>
   <li class="note">Responds To: <a href="#packet_ping">Ping</a></li>
 </ul>
-
-<span class="note"> This Packet type does not contain any data fields </span><br/>
+<b>Fields:</b>
+<table class="fields">
+  <tr>
+    <th> Field</th>
+    <th> Type</th>
+    <th> Description</th>
+  </tr>
+  <tr>
+    <td width="">icd</td>
+    <td width="">  uint32_t    </td>
+    <td>32bit Hash of protocol description.Only present when responding to Ping</td>
+  </tr>
+</table>
 <br/>
 <hr class="thick">
 </div>

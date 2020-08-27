@@ -511,6 +511,7 @@ def addStandardPackets(protocol):
     ack = packetDesc("Ack", protocol)
     icd = fieldDesc("icd", "uint32")
     icd.isRequired = True
+    icd.format = 'FORMAT_HEX'
     icd.setPrefix(protocol.prefix)
     icd.desc = "CRC Hash of protocol description. This is used to verify endpoints are using the same protocol"
     ping.desc = "This message requests an Ack from a remote device to test connectivity"
