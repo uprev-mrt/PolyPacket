@@ -129,7 +129,7 @@ class PolyTcp (threading.Thread):
     
     def listen(self):
         try:
-            self.socket.bind((socket.gethostname(), self.localPort))
+            self.socket.bind(('', self.localPort))
             self.socket.listen(1)
             self.iface.print(" TCP Listening on port: " + str(self.socket.getsockname()[1]))
         except Exception  as e:
