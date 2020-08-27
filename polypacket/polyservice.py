@@ -119,7 +119,7 @@ class PolyTcp (threading.Thread):
         self.socket.close()
 
     def connect(self, hostIp, hostPort):
-        self.iface.print(self.iface.name + " Connecting to " + hostIp + ":"+str(hostPort))
+        self.iface.print(" TCP Connecting to " + hostIp + ":"+str(hostPort))
         self.host = (hostIp, hostPort)
         self.mode = 'client'
         try:
@@ -196,7 +196,7 @@ class PolyUdp (threading.Thread):
         self.socket.close()
 
     def connect(self, hostIp, hostPort):
-        self.iface.print(self.iface.name + " Connecting to " + hostIp + ":"+str(hostPort))
+        self.iface.print("UDP Connecting to " + hostIp + ":"+str(hostPort))
         self.host = (hostIp, hostPort)
 
     def send(self, data):
