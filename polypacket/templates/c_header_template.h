@@ -159,6 +159,7 @@ void ${proto.prefix}_service_feed(int iface, uint8_t* data, int len);
   */
 void ${proto.prefix}_service_set_retry(int iface, uint16_t retries, uint32_t timeoutMs);
 
+#ifndef POLYPACKET_NO_JSON
 /**
   *@brief handles json message, and shortcuts the servicing proccess. used for http requests
   *@param req incoming json message string
@@ -174,6 +175,7 @@ HandlerStatus_e ${proto.prefix}_handle_json(const char* req,int len, char* resp)
   *@param number of bytes
   */
 void ${proto.prefix}_service_feed_json(int iface, const char* msg, int len);
+#endif //POLYPACKET_NO_JSON
 
 /**
   *@brief sends packet over given interface
@@ -222,6 +224,7 @@ void ${proto.prefix}_packet_build(${proto.prefix}_packet_t* packet, poly_packet_
   */
 void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
 
+#ifndef POLYPACKET_NO_JSON
 /**
   *@brief converts packet to json
   *@param packet ptr to packet to convert
@@ -229,6 +232,7 @@ void ${proto.prefix}_clean(${proto.prefix}_packet_t* packet);
   *@return length of string
   */
 #define ${proto.prefix}_print_json(packet,buf) poly_packet_print_json((packet), buf, false)
+#endif //POLYPACKET_NO_JSON
 
 /**
   *@brief parses packet from a buffer of data

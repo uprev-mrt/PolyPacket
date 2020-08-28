@@ -27,7 +27,8 @@ setuptools.setup(
         'pyyaml',
         'cobs',
         'pyserial',
-        'update_notipy'
+        'update_notipy',
+        'mrtutils'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",

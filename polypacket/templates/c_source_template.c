@@ -266,6 +266,7 @@ void ${proto.prefix}_service_set_retry(int iface, uint16_t retries, uint32_t tim
   poly_service_set_retry(&${proto.service()}, iface,  retries,  timeoutMs);
 }
 
+#ifndef POLYPACKET_NO_JSON
 HandlerStatus_e ${proto.prefix}_handle_json(const char* req, int len, char* resp)
 {
   ${proto.prefix}_packet_t packet;
@@ -313,6 +314,7 @@ void ${proto.prefix}_service_feed_json(int iface, const char* msg, int len)
 {
   poly_service_feed_json_msg(&${proto.service()},iface,msg,len);
 }
+#endif //POLYPACKET_NO_JSON
 
 
 void ${proto.prefix}_tick(uint32_t ms)

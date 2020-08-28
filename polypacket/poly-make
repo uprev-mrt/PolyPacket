@@ -15,13 +15,15 @@ import copy
 import datetime
 import zlib
 import argparse
-#import pdfkit
 from shutil import copyfile
 from mako.template import Template
 import pkgutil
 import polypacket
 import subprocess
 from polypacket.protocol import *
+from polypacket.updates import *
+from mrtutils.mrtTemplateHelper import *
+
 
 args = None
 parser = None
@@ -30,6 +32,19 @@ now = datetime.datetime.now()
 path ="./"
 
 
+class libBuilder:
+    def __init__(self):
+        self.blocks = {}
+
+    def loadFile(self, path):
+        prefix = os.path.basename(path).replace('.','_') + '_'
+        
+        cr = CodeReplacer()
+        curFile = open(outputFile, "r")
+        text = curFile.read()
+        cr.loadText(text)
+        for k in cr.blocks:
+
 
 def buildTemplate(protocol, templateFile, outputFile):
     template = Template(pkgutil.get_data('polypacket',templateFile) )
@@ -37,6 +52,9 @@ def buildTemplate(protocol, templateFile, outputFile):
     text_file.write("\n".join(template.render(proto = protocol).splitlines()))
     #text_file.write(template.render(proto = protocol))
     text_file.close()
+
+def buildLibrary(ModulesPath, outputPath):
+
 
 def initRepo(path):
     subprocess.check_output(['git','init',path] )
@@ -98,15 +116,17 @@ def init_args():
     parser.add_argument('-s', '--snippets', action='store_true', help='Adds helpful code snippets to files', default=False)
     parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
     parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
-    parser.add_argument('-c', '--cpp', action='store_true', help='use C++', default=False)
-    parser.add_argument('-t', '--template', type=str, help='Template path', default="")
-
+    #parser.add_argument('-c', '--cpp', action='store_true', help='use C++', default=False)
+    parser.add_argument('-l', '--library',  action='store_true', help='Creates a single file version of the polypacket library using the latest commits', default=False)
+    parser.add_argument('-p', '--package',  type=str, help='Path to Mrt/Modules to Pack up existing polypacket library into single file library', default="")
 
 
 def main():
     global path
     global parser
     global args
+
+    updateCheck()
 
     init_args()
     args= parser.parse_args()
