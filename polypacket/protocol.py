@@ -92,10 +92,11 @@ class simulator:
         if 'init' in simItem:
             self.init = simItem['init']
 
-        for handler in simItem['handlers']:
-            name = list(handler.keys())[0]
-            code  = list(handler.values())[0]
-            self.handlers[name] = code
+        if 'handlers' in simItem:
+            for handler in simItem['handlers']:
+                name = list(handler.keys())[0]
+                code  = list(handler.values())[0]
+                self.handlers[name] = code
 
 class fieldVal:
     def __init__(self, name):

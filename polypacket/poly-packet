@@ -254,16 +254,17 @@ def load_sim(service, sim):
     
     service.handlers.clear() #clear current handlers
 
-    if sim.init != "":
-        fx = sim.init
-        exec(fx)
+    printToConsole(" Sim Profile '" + sim.name+ "' Loaded ")
 
     for key, value in sim.handlers.items():
         fx = "def "+ key +"_handler(service,req, resp):\n\t" + value.replace('\n','\n\t')+"\n"
         exec(fx)
         exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
-    
-    printToConsole(" Sim Profile '" + sim.name+ "' Loaded ")
+ 
+    if sim.init != "":
+        fx = sim.init
+        exec(fx)
+
 
 def run():
     global parser
@@ -333,15 +334,15 @@ def run():
     outputField.text += "              __/ |                            \n"
     outputField.text += "             |___/                             \n"
 
-    
-    if simProfile in PROTOCOL.sims:
-        load_sim(SERVICE, PROTOCOL.sims[simProfile])
 
     if not args.command == '':
         commands = ' '.join(args.command)
         commands = commands.split(';')
         for com in commands:
             parseCommand(com)
+
+    if simProfile in PROTOCOL.sims:
+        load_sim(SERVICE, PROTOCOL.sims[simProfile])
 
 
 
