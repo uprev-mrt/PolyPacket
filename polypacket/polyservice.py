@@ -626,13 +626,17 @@ class PolyIface:
 
     def sendPacket(self, packet, silent = False):
 
+        if self.service.silenceDict[packet.desc.name]:
+            silent = True
+
         if packet.desc.name == "Ping":
             packet.setField('icd', str(self.service.protocol.crc))
 
-        if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
-            self.print("")
 
         if not silent:
+            if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
+                self.print("")
+
             self.print( " --> " + packet.printJSON(self.service.showMeta))
 
         raw = packet.pack()
