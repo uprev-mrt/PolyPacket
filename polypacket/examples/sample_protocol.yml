@@ -45,12 +45,19 @@ packets:
         - header
         - cmd
 
-
   - GetData:
       desc: Message tp get data from node
       response: Data          #A response packet can be specified
       fields:
         - header
+
+  - SetData:
+      desc: contains data from a sensor
+      fields:
+        - header
+        - sensorA
+        - sensorB
+        - sensorName : {desc: Name of sensor sending data }   #Field descriptions can be overriden for different packets
 
   - Data:
       desc: contains data from a sensor
@@ -64,10 +71,38 @@ packets:
 ###########################################################################################################
 
 structs:
-
   - Node:
       desc: struct for modeling node
       fields:
         - sensorA
         - sensorB
         - sensorName
+
+###########################################################################################################
+#                                   Sims                                                                  #
+###########################################################################################################
+sims:
+  # This creates a sim named 'node' to load it, add '-s node' when running poly packet
+  # naming a sim 'default' will cause it to load 
+  - node: 
+      # init signature is init(service):
+      # service has a blank dict called dataStore that can be used to store variables
+      init: |
+        service.dataStore['node'] = service.newStruct('Node')
+        service.dataStore['node'].setField('sensorName', 'node01')
+        service.dataStore['node'].setField('sensorA', 25)
+        service.dataStore['node'].setField('sensorB', 65)
+        node = service.dataStore['node']
+        service.print('\nCreating Sensor node:\n   name: {0}\n   sensorA: {1}\n   sensorB: {2}\n'.format(node.getField('sensorName'),node.getField('sensorA'),node.getField('sensorB') ))
+
+
+      #handlers fill out a function with the signature <name>_handler(service, req, resp):
+      # you can print out to the console with service.print(text)
+      handlers: 
+          
+        #Use packets/nodes can be copied to eachother. All shared fields that are present in the source will get copied to the destination
+        - SetData: |
+            req.copyTo(service.dataStore['node'])
+
+        - GetData: |
+            service.dataStore['node'].copyTo(resp)
