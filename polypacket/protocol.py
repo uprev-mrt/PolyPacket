@@ -14,7 +14,8 @@ import pkgutil
 import polypacket
 import subprocess
 import yaml
-import urllib3
+import requests
+import validators
 
 
 sizeDict = {
@@ -764,8 +765,10 @@ def parseYAML(yamlFile):
             if os.path.isfile(pluginPath):
                 pluginData = open(pluginPath)
                 pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
-            elif pluginPath.contains("http"):
-                pluginYaml = yaml.load(urllib2.urlopen(pluginPath), Loader=yaml.FullLoader)
+            elif validators.url(pluginPath):
+
+                pluginData = requests.get(pluginPath).text
+                pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
             else:
                 print("Error loading plugin: " + pluginPath)
                 break
@@ -819,9 +822,9 @@ def parseYAML(yamlFile):
                     
                     objProtocol['packets'].append(packetItem)
 
-                    #output objProtocol to yaml file 
-                    with open('test.yml', 'w') as outfile:
-                        yaml.dump(objProtocol, outfile, default_flow_style=False)
+                    #output objProtocol to yaml file for debugging
+                    # with open('test.yml', 'w') as outfile:
+                    #     yaml.dump(objProtocol, outfile, default_flow_style=False)
 
                             
 
