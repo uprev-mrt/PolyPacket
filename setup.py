@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
      name='polypacket',
-     version='1.0.69',
+     version="1.0.70",
      author="Jason Berger",
      author_email="JBerger@up-rev.com",
      description="A tool for building protocol services",
@@ -27,7 +27,8 @@ setuptools.setup(
         'pyyaml',
         'cobs',
         'pyserial',
-        'update_notipy'
+        'update_notipy',
+        'urllib3'
      ],
      classifiers=[
          "Programming Language :: Python :: 3",

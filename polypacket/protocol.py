@@ -14,6 +14,7 @@ import pkgutil
 import polypacket
 import subprocess
 import yaml
+import urllib3
 
 
 sizeDict = {
@@ -750,6 +751,83 @@ def parseYAML(yamlFile):
 
     protocol.xmlName = os.path.basename(yamlFile)
 
+    #add in plugins 
+    if 'plugins' in  objProtocol:
+        for pluginPath in objProtocol['plugins']:
+
+            pluginYaml = None
+
+            fieldPrefix = ''
+            packetPrefix = ''
+
+            #determine if plugin is local file or url 
+            if os.path.isfile(pluginPath):
+                pluginData = open(pluginPath)
+                pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
+            elif pluginPath.contains("http"):
+                pluginYaml = yaml.load(urllib2.urlopen(pluginPath), Loader=yaml.FullLoader)
+            else:
+                print("Error loading plugin: " + pluginPath)
+                break
+
+            if 'prefix' in pluginYaml:
+                fieldPrefix = pluginYaml['prefix'] + '_'
+                packetPrefix = pluginYaml['prefix'][:1].capitalize() + pluginYaml['prefix'][1:]
+                
+
+            #add fields
+            if 'fields' in pluginYaml:
+                for fieldItem in pluginYaml['fields']:
+                    #change name to include plugin prefix
+                    name = fieldPrefix + list(fieldItem.keys())[0]
+
+                    #set new name 
+                    fieldItem[name] = fieldItem.pop(list(fieldItem.keys())[0])
+                    objProtocol['fields'].append(fieldItem)
+
+            if 'packets' in pluginYaml:
+                for packetItem in pluginYaml['packets']:
+                    #change name to include plugin camel case prefix 
+                    name = packetPrefix + list(packetItem.keys())[0]
+
+
+                    #set new name 
+                    packetItem[name] = packetItem.pop(list(packetItem.keys())[0])
+
+                    #rename response 
+                    if 'response' in packetItem[name]:
+
+                        if packetItem[name]['response'] != "none":
+                            packetItem[name]['response'] = packetPrefix + packetItem[name]['response']
+                    #rename fields 
+                    idx= 0
+                    if 'fields' in packetItem[name]:
+                        for fieldItem in packetItem[name]['fields']:
+                            
+                            # if item is a string 
+                            if type(fieldItem) is str:
+                                #change name to include plugin prefix
+                                fieldItem = fieldPrefix + fieldItem
+                                packetItem[name]['fields'][idx] = fieldItem
+
+                            else:   
+                                #change name to include plugin prefix
+                                fieldName = fieldPrefix + list(fieldItem.keys())[0]
+                                fieldItem[fieldName] = fieldItem.pop(list(fieldItem.keys())[0])
+                            
+                            idx+=1
+                    
+                    objProtocol['packets'].append(packetItem)
+
+                    #output objProtocol to yaml file 
+                    with open('test.yml', 'w') as outfile:
+                        yaml.dump(objProtocol, outfile, default_flow_style=False)
+
+                            
+
+
+
+
     for fieldItem in objProtocol['fields']:
 
         nodeType = list(fieldItem.values())[0]
@@ -856,6 +934,7 @@ def parseYAML(yamlFile):
             name = list(simItem.keys())[0]
             sim = list(simItem.values())[0]
             protocol.sims[name] = simulator(name,sim)
+         
     
     for packet in protocol.packets:
         for request in packet.requests.keys():
