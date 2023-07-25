@@ -103,13 +103,14 @@ class PolySerial (threading.Thread):
 class PolyTcp (threading.Thread):
     def __init__(self, iface, localPort ):
         threading.Thread.__init__(self)
-        self.iface = iface
+        self.iface : PolyIface= iface
         self.localPort = localPort
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.host = 0
         self.mode = 'server'
         self.connection = None 
         self.client_address = None
+        self.opened = False
 
     def __del__(self):
         self.socket.close()
@@ -119,11 +120,13 @@ class PolyTcp (threading.Thread):
         self.socket.close()
 
     def connect(self, hostIp, hostPort):
-        self.iface.print(" TCP Connecting to " + hostIp + ":"+str(hostPort))
+        self.iface.print(" TCP trying " + hostIp + ":"+str(hostPort))
         self.host = (hostIp, hostPort)
         self.mode = 'client'
         try:
             self.socket.connect(self.host)
+            self.opened = True
+            self.iface.print(" TCP Connected")
         except Exception  as e:
             self.iface.print(str(e))
     
@@ -144,11 +147,13 @@ class PolyTcp (threading.Thread):
             else:
                 self.socket.sendall(data)
         except Exception  as e:
+            self.opened = False
             self.iface.print(str(e))
 
     def run(self):
 
         if self.mode == 'server':
+            self.opened = True
             while True:
                 self.connection, self.client_address = self.socket.accept()
                 self.iface.service.print(" Connection Accepted: " + str(self.client_address))
@@ -172,6 +177,7 @@ class PolyTcp (threading.Thread):
                         self.iface.feedEncodedBytes(data)
                 except IOError as e:  # and here it is handeled
                     self.iface.service.print(str(e))
+                    self.opened = False
                     break
                     if e.errno == errno.EWOULDBLOCK:
                         pass
@@ -265,6 +271,11 @@ class PolyField:
                     self.values[0] = int(val, 0)
 
 
+    def copyTo(self, field ):
+        field.values = self.values
+        field.isPresent = self.isPresent 
+        field.len = self.len 
+
     def get(self):
         if self.isPresent :
             if self.desc.isArray and not self.desc.isString :
@@ -328,7 +339,7 @@ class PolyField:
 
         return byteArr
 
-    def printJSON(self):
+    def toJSON(self):
         json =""
         json += "\"" + self.desc.name +"\" : "
         if self.desc.isArray and not self.desc.isString:
@@ -343,8 +354,8 @@ class PolyField:
 
 class PolyPacket:
     def __init__(self, protocol ):
-        self.protocol = protocol
-        self.fields = []
+        self.protocol : protocolDesc = protocol
+        self.fields  = []
         self.seq =0
         self.dataLen = 0
         self.token = random.randint(1, 32767)
@@ -353,6 +364,7 @@ class PolyPacket:
         self.packet_handler = ''
         self.autoAck = True
         self.ackFlag = False
+        self.sent = False #used to mark if a packet has already been sent and is being reused
 
     def setField(self, fieldName, value):
         for field in self.fields:
@@ -366,7 +378,16 @@ class PolyPacket:
                 return field.get()
         return -1
 
+    def hasField(self, fieldName):
+        for field in self.fields:
+            if fieldName.lower() == field.desc.name.lower():
+                if (field.isPresent):
+                    return True
+        return False
 
+    def setFields(self, dict):
+        for key, value in dict.items():
+            self.setField(key,value)
 
     def build(self, typeId):
         self.typeId = typeId
@@ -375,6 +396,11 @@ class PolyPacket:
             self.fields.append( PolyField(fieldDesc))
 
     def copyTo(self, packet):
+        for field in self.fields:
+                for dstField in packet.fields:
+                    if(field.isPresent):
+                        if(dstField.desc.name.lower() == field.desc.name.lower()):
+                            field.copyTo(dstField)
         return 0
 
     def handler(self, iface):
@@ -459,7 +485,7 @@ class PolyPacket:
 
         return self.raw
 
-    def printJSON(self, meta= False):
+    def toJSON(self, meta= False):
         json = ""
         #json += ''.join(' {:02x}'.format(x) for x in self.raw) + "\n"
         json +="{ \"packetType\" : \""+ self.desc.name + "\""
@@ -473,10 +499,13 @@ class PolyPacket:
 
         for field in self.fields:
             if field.isPresent:
-                json+= ", " + field.printJSON()
+                json+= ", " + field.toJSON()
 
         json += "}"
         return json
+
+class PolyStruct(PolyPacket):
+    pass
 
 class PolyIface:
     def __init__(self, connStr, service):
@@ -487,6 +516,7 @@ class PolyIface:
         self.packetsIn = deque([])
         self.name = ""
         self.lastToken = 0
+        self.connType = None
 
 
         if not connStr == "":
@@ -525,6 +555,7 @@ class PolyIface:
 
                 self.coms = PolyUdp(self, localPort)
                 self.name = "UDP"
+                self.connType = "UDP"
                 if remotePort > -1:
                     self.coms.connect(remoteHost, remotePort)
                 
@@ -551,6 +582,7 @@ class PolyIface:
 
                 self.coms = PolyTcp(self, localPort)
                 self.name = "TCP"
+                self.connType = "TCP"
                 if remotePort == -1:    #server mode
                     self.coms.listen()
                 else:                   #client mode 
@@ -562,11 +594,13 @@ class PolyIface:
             elif words[0] == 'serial':
                 try:
                     if len(words) == 2:
-                        self.coms = PolySerial(self,words[1], 9600)
+                        self.coms = PolySerial(self,words[1], 115200)
                     if len(words) == 3:
                         self.coms = PolySerial(self,words[1], words[2])
 
                     self.coms.daemon = True
+                    self.name = "SERIAL"
+                    self.connType = "SERIAL"
                     self.coms.start()
                 except:
                     self.print( "Invalid connection string\n serial:/dev/ttyS[COM Number]:baud")
@@ -578,6 +612,18 @@ class PolyIface:
     def print(self, text):
         if not self.service.print == '':
             self.service.print( text)
+
+    def isConnected(self): 
+
+        if self.connType == "TCP":
+            return self.coms.opened
+        elif self.connType == "UDP":
+            if self.coms.host != 0:
+                return True
+        elif self.connType == "SERIAL":
+            return self.coms.opened
+        
+        return False
 
     def feedEncodedBytes(self, encodedBytes):
 
@@ -616,7 +662,7 @@ class PolyIface:
                 if (newPacket.token & 0x7FFF) != (self.lastToken & 0x7FFF):
                     self.print("")
 
-                self.print( " <-- " + newPacket.printJSON(self.service.showMeta))
+                self.print( " <-- " + newPacket.toJSON(self.service.showMeta))
 
             resp = newPacket.handler(self)
             self.lastToken = newPacket.token
@@ -625,6 +671,11 @@ class PolyIface:
             #self.packetsIn.append(newPacket)
 
     def sendPacket(self, packet, silent = False):
+
+
+        #if packet was already sent and is being re-used, assign it a new token
+        if packet.sent :
+            packet.token = random.randint(1, 32767)
 
         if self.service.silenceDict[packet.desc.name]:
             silent = True
@@ -637,7 +688,7 @@ class PolyIface:
             if (packet.token & 0x7FFF) != (self.lastToken & 0x7FFF):
                 self.print("")
 
-            self.print( " --> " + packet.printJSON(self.service.showMeta))
+            self.print( " --> " + packet.toJSON(self.service.showMeta))
 
         raw = packet.pack()
 
@@ -653,6 +704,7 @@ class PolyIface:
             self.coms.send(encoded)
 
         self.lastToken = packet.token
+        packet.sent = True
 
         return encoded
 
@@ -662,23 +714,59 @@ class PolyIface:
             return packetsIn.popleft()
 
 
+def null_print(str):
+    pass
 
 class PolyService:
     def __init__(self, protocol):
-        self.protocol = protocol
+
+        #If protocol is just a path to a file, we can build the protocol
+        if type(protocol) is str: 
+            protocol = buildProtocol(protocol)
+
+        self.protocol : protocolDesc = protocol
         self.interfaces = []
-        self.print = ''
+        self.print = null_print
         self.showMeta = False
         self.autoAck = True
         self.handlers = {}
         self.silenceDict = {}
         self.showBytes = False
         self.dataStore = {}
+        self.defaultInterface : PolyIface = None
 
-        for packet in protocol.packets:
-            self.silenceDict[packet.name] = False
+        if hasattr(protocol, 'packets'):
+            for packet in protocol.packets:
+                self.silenceDict[packet.name] = False
 
         self.addIface("") #add dummy interface that just prints
+
+    def sendPacket(self,packet , fieldDict = {}):
+        """Sends a packet on the default interface.
+
+        :param polypacket/str packet: built polypacket, or string with packet type
+        :param obj fieldDict: dictionary of fields to set for packet
+        :return: token of sent packet
+        """
+
+        if self.defaultInterface == None:
+            raise Exception("Null interface on PolyService")
+        
+        if isinstance(packet, str):
+            packet = self.newPacket(packet)
+        
+        packet.setFields(fieldDict)
+
+        self.defaultInterface.sendPacket(packet)
+
+        return self.defaultInterface.lastToken
+    
+    def isConnected(self):
+
+        if self.defaultInterface != None:
+            return self.defaultInterface.isConnected()
+        
+        return False
 
     def close(self):
         for iface in self.interfaces:
@@ -687,9 +775,10 @@ class PolyService:
     def addIface(self, connStr):
         self.interfaces.append(PolyIface(connStr, self))
 
-    def setIface(self,connStr):
+    def connect(self,connStr):
         self.interfaces[0].close()
         self.interfaces[0] = PolyIface(connStr, self)
+        self.defaultInterface = self.interfaces[0]
 
     def toggleAck(self):
         if self.autoAck:
@@ -711,18 +800,27 @@ class PolyService:
             self.silenceDict[packetType] = True
             self.print( "Silencing: " + packetType)
 
-    def newPacket(self, type):
+    def newPacket(self, type : str, fields = {}) -> PolyPacket:
         packet = PolyPacket(self.protocol)
 
         if type in self.protocol.packetIdx:
             packet.build(self.protocol.packetIdx[type])
+            packet.setFields(fields)
         else:
             self.print(" Packet Type \"" + type + "\", not found!")
 
         return packet
 
     def newStruct(self, type):
-        return self.newPacket(type)
+        struct = PolyPacket(self.protocol)
+
+        if type in self.protocol.structIdx:
+            struct.build(self.protocol.structIdx[type])
+        else:
+            self.print(" Struct Type \"" + type + "\", not found!")
+
+        return struct
+
     #
     # def process(self):
     #     for iface in self.interfaces:

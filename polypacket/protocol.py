@@ -678,8 +678,11 @@ def parseXML(xmlfile):
 
 
 def parseYAMLField(protocol, fieldItem):
-    name = list(fieldItem.keys())[0]
-    field = list(fieldItem.values())[0]
+    try:
+        name = list(fieldItem.keys())[0]
+        field = list(fieldItem.values())[0]
+    except: 
+        print("Error parsing: " + str(fieldItem))
 
     strType = field['type'].replace("(","[").replace(")","]");
 
@@ -807,40 +810,45 @@ def parseYAML(yamlFile):
             newPacket = packetDesc(name, protocol)
             newPacket.setPrefix(protocol.prefix)
 
-            if(name in protocol.packetIdx):
-                print( 'ERROR Duplicate Packet Name!: ' + name)
+            try:
 
-            if('desc' in packet):
-                desc = packet['desc']
+                if(name in protocol.packetIdx):
+                    print( 'ERROR Duplicate Packet Name!: ' + name)
 
-            if('response' in packet):
-                if (packet['response'] != "none"):
-                    newPacket.requests[packet['response']] = 0
-            else:
-                if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name :
-                    newPacket.requests[protocol.defaultResponse] = 0
+                if('desc' in packet):
+                    desc = packet['desc']
 
-            #get all fields declared for packet
-            if "fields" in packet:
-                for pfieldItem in packet['fields']:
+                if('response' in packet):
+                    if (packet['response'] != "none"):
+                        newPacket.requests[packet['response']] = 0
+                else:
+                    if not protocol.defaultResponse == "" and not  protocol.defaultResponse == newPacket.name :
+                        newPacket.requests[protocol.defaultResponse] = 0
 
-                    if type(pfieldItem) is dict:
-                        pfname = list(pfieldItem.keys())[0]
-                        pfield = list(pfieldItem.values())[0]
-                    else:
-                        pfname = pfieldItem
-                        pfield = {}
+                #get all fields declared for packet
+                if "fields" in packet:
+                    for pfieldItem in packet['fields']:
+
+                        if type(pfieldItem) is dict:
+                            pfname = list(pfieldItem.keys())[0]
+                            pfield = list(pfieldItem.values())[0]
+                        else:
+                            pfname = pfieldItem
+                            pfield = {}
 
 
-                    if pfname in protocol.fieldGroups:
-                        for pfFieldGroupItem in protocol.fieldGroups[pfname]:
-                            newPacket.addYAMLField(pfFieldGroupItem)
-                    else:
-                        newPacket.addYAMLField(pfieldItem)
+                        if pfname in protocol.fieldGroups:
+                            for pfFieldGroupItem in protocol.fieldGroups[pfname]:
+                                newPacket.addYAMLField(pfFieldGroupItem)
+                        else:
+                            newPacket.addYAMLField(pfieldItem)
 
-            newPacket.desc = desc
+                newPacket.desc = desc
 
-            protocol.addPacket(newPacket)
+                protocol.addPacket(newPacket)
+            
+            except: 
+                print("Error parsing: " + str(packetItem))
 
 
     if 'sims' in  objProtocol: #experimental

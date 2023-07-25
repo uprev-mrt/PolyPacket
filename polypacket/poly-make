@@ -6,6 +6,7 @@
 #@date 02/19/2019
 #
 
+from doctest import OutputChecker
 import sys
 import xml.etree.ElementTree as ET
 import re
@@ -22,6 +23,8 @@ import pkgutil
 import polypacket
 import subprocess
 from polypacket.protocol import *
+from mrtutils.mrtTemplateHelper import *
+
 
 args = None
 parser = None
@@ -31,11 +34,45 @@ path ="./"
 
 
 
-def buildTemplate(protocol, templateFile, outputFile):
+# def buildTemplate(protocol, templateFile, outputFile):
+#     template = Template(pkgutil.get_data('polypacket',templateFile) )
+#     text_file = open( outputFile , "w")
+#     text_file.write("\n".join(template.render(proto = protocol, args = args, t = TemplateHelper()).splitlines()))
+#     #text_file.write(template.render(proto = protocol))
+#     text_file.close()
+
+def buildTemplate(object, templateFile, outputFile, userBlocks = True, overwrite= True):
+    exists= False
+    if not os.path.exists(outputFile):
+        exists = True 
+
+    if exists and overwrite == False:
+        return 0
+
+    outputFile = outputFile.replace(" ", "_")
+
+
+    cr = CodeReplacer()
+    newContents =""
+    headerPattern = r"@file (.*?)\n(.*?)\*/"
+    handlerPattern = r" (.*?)_handler.*?\n}"
+    if os.path.isfile(outputFile) and userBlocks:
+        exists = True
+        curFile = open(outputFile, "r")
+        text = curFile.read()
+        cr.loadText(text)
+        cr.loadText(text,headerPattern)
+        cr.loadText(text,handlerPattern)
+
     template = Template(pkgutil.get_data('polypacket',templateFile) )
+    newContents = "\n".join(template.render(proto = object, args= args,  t = TemplateHelper()).splitlines())
+    if(userBlocks):
+        newContents = cr.insertBlocks(newContents)
+        newContents = cr.insertBlocks(newContents,headerPattern)
+        newContents = cr.insertBlocks(newContents,handlerPattern)
+        cr.printDrops()
     text_file = open( outputFile , "w")
-    text_file.write("\n".join(template.render(proto = protocol).splitlines()))
-    #text_file.write(template.render(proto = protocol))
+    text_file.write(newContents)
     text_file.close()
 
 def initRepo(path):
@@ -99,6 +136,7 @@ def init_args():
     parser.add_argument('-u', '--utility', type=str, help='Output path for Linux host utility application', default="")
     parser.add_argument('-m', '--html', action='store_true', help='Generates html doc', default=False)
     parser.add_argument('-c', '--cpp', action='store_true', help='use C++', default=False)
+    parser.add_argument('-b', '--basic', action='store_true', help='Simplified documentation', default=False)
     parser.add_argument('-t', '--template', type=str, help='Template path', default="")
 
 
@@ -150,7 +188,7 @@ def main():
 
 
         if(docPath != ""):
-            buildTemplate(protocol, 'templates/doc_template.md', docPath +"/"+ protocol.name+"_ICD.md")
+            buildTemplate(protocol, 'templates/doc_template.rst', docPath +"/"+ protocol.name+"_ICD.rst")
             buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
             #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
 
