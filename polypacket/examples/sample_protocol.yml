@@ -88,11 +88,11 @@ sims:
       # init signature is init(service):
       # service has a blank dict called dataStore that can be used to store variables
       init: |
-        service.dataStore['node'] = service.newStruct('Node')
-        service.dataStore['node'].setField('sensorName', 'node01')
-        service.dataStore['node'].setField('sensorA', 25)
-        service.dataStore['node'].setField('sensorB', 65)
-        node = service.dataStore['node']
+        DataStore['node'] = service.newStruct('Node')
+        DataStore['node'].setField('sensorName', 'node01')
+        DataStore['node'].setField('sensorA', 25)
+        DataStore['node'].setField('sensorB', 65)
+        node = DataStore['node']
         service.print('\nCreating Sensor node:\n   name: {0}\n   sensorA: {1}\n   sensorB: {2}\n'.format(node.getField('sensorName'),node.getField('sensorA'),node.getField('sensorB') ))
 
 
@@ -102,7 +102,17 @@ sims:
           
         #Use packets/nodes can be copied to eachother. All shared fields that are present in the source will get copied to the destination
         - SetData: |
-            req.copyTo(service.dataStore['node'])
+            req.copyTo(DataStore['node'])
 
         - GetData: |
-            service.dataStore['node'].copyTo(resp)
+            DataStore['node'].copyTo(resp)
+
+      #You can add custom commands to a sim that will be loaded in for autocomplete and help menus in the CLI
+      commands:
+        - rename: 
+            desc: renames the node
+            args:
+              - name: {type: string, desc: new name for node}
+            handler: |
+              DataStore['node'].setField('sensorName', name)
+              service.print('\nRenaming Sensor node:\n   name: {0}\n'.format(name))

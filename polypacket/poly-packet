@@ -361,7 +361,11 @@ def load_sim(service, sim):
 
         try:
             commandNames.append(command.name)
-            fx = "def "+ command.name +"_cmd_handler(service,args):\n\tglobal DataStore\n\t" + command.handler.replace('\n','\n\t')+"\n"
+            fx = "def "+ command.name +"_cmd_handler(service,args):\n\tglobal DataStore\n" 
+            for arg in command.args:
+                fx+= "\t"+arg.name + "= args.get('" + arg.name +"', None)\n"
+            fx += "\n\t"+ command.handler.replace('\n','\n\t')+"\n"
+            printToConsole(fx)
             exec(fx)
             simCommands[command.name] = command
             exec("simCommands[\""+command.name+"\"].f_handler = "+command.name+ "_cmd_handler")
