@@ -128,7 +128,7 @@ class PolyTcp (threading.Thread):
             self.opened = True
             self.iface.print(" TCP Connected")
         except Exception  as e:
-            self.iface.print(str(e))
+            self.iface.print( "Exception: " +str(e))
     
     def listen(self):
         try:
@@ -136,7 +136,7 @@ class PolyTcp (threading.Thread):
             self.socket.listen(1)
             self.iface.print(" TCP Listening on port: " + str(self.socket.getsockname()[1]))
         except Exception  as e:
-            self.iface.print(str(e))
+            self.iface.print( "Exception: " +str(e))
 
     def send(self, data):
         try:
@@ -148,7 +148,7 @@ class PolyTcp (threading.Thread):
                 self.socket.sendall(data)
         except Exception  as e:
             self.opened = False
-            self.iface.print(str(e))
+            self.iface.print( "Exception: " +str(e))
 
     def run(self):
 
@@ -165,7 +165,7 @@ class PolyTcp (threading.Thread):
                         else:
                             break
                     except IOError as e:  # and here it is handeled
-                        self.iface.service.print(str(e))
+                        self.iface.service.print( "Exception: " +str(e))
                         break
                 self.iface.service.print(" TCP Disconnected")
                 self.connection.close()
@@ -176,7 +176,7 @@ class PolyTcp (threading.Thread):
                     if data:
                         self.iface.feedEncodedBytes(data)
                 except IOError as e:  # and here it is handeled
-                    self.iface.service.print(str(e))
+                    self.iface.service.print( "Exception: " +str(e))
                     self.opened = False
                     break
                     if e.errno == errno.EWOULDBLOCK:
@@ -212,7 +212,7 @@ class PolyUdp (threading.Thread):
                 #self.iface.print(" >>> " + ''.join(' {:02x}'.format(x) for x in data))
                 self.socket.sendto(data, self.host)
             except Exception  as e:
-                self.iface.print(str(e))
+                self.iface.print( "Exception: " +str(e))
 
     def run(self):
         while True:
@@ -650,9 +650,9 @@ class PolyIface:
             try:
                 newPacket.parse(decoded)
             except Exception  as e:
-                self.print(str(e))
+                self.print( "Exception: " +str(e))
                 
-            if self.service.silenceDict[newPacket.desc.name]:
+            if self.service.silenceAll or self.service.silenceDict[newPacket.desc.name] :
                 silent = True
 
             if not silent:
@@ -677,7 +677,7 @@ class PolyIface:
         if packet.sent :
             packet.token = random.randint(1, 32767)
 
-        if self.service.silenceDict[packet.desc.name]:
+        if self.service.silenceAll or self.service.silenceDict[packet.desc.name]:
             silent = True
 
         if packet.desc.name == "Ping":
@@ -731,6 +731,7 @@ class PolyService:
         self.autoAck = True
         self.handlers = {}
         self.silenceDict = {}
+        self.silenceAll = False
         self.showBytes = False
         self.dataStore = {}
         self.defaultInterface : PolyIface = None

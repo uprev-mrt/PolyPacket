@@ -24,6 +24,8 @@ from prompt_toolkit.layout.menus import CompletionsMenu
 
 from polypacket.protocol import *
 from polypacket.polyservice import *
+import binascii
+import traceback
 
 import sys
 import os
@@ -39,16 +41,22 @@ compFields = []
 compVals = []
 
 
-
 connect_completer = WordCompleter(['serial:','udp:','tcp:'],ignore_case=True)
 
 sim_completer = ''
 
-packet_completer = ''
+command_completer = ''
 
 
 outputField = TextArea(style='class:output-win',multiline=True)
 outputField.text = "Ctrl-C to quit"
+
+DataStore ={}
+
+simCommands = {}
+simCommandHelp = {}
+
+
 
 
 # Style.
@@ -64,7 +72,7 @@ def onInputChange(buff):
     global PROTOCOL
     global compFields
     global compVals
-    global packet_completer
+    global command_completer
 
     input = buff.text.split(';')[-1] #only worry about lastest command
     if len(input.strip()) > 0:
@@ -77,6 +85,12 @@ def onInputChange(buff):
             
             elif word.lower() == 'loadsim':
                 buff.completer = sim_completer
+
+            elif word.lower() in simCommands :
+                compVals = ['help']
+                for arg in simCommands[word.lower()].args:
+                    compVals.append(arg.name + ':')
+                buff.completer = WordCompleter(compVals,ignore_case=True )
 
             elif lastWord.replace(':','') in PROTOCOL.fieldIdx:
                 lastWord = lastWord.replace(':','')
@@ -100,12 +114,12 @@ def onInputChange(buff):
                 buff.completer = WordCompleter(compFields,ignore_case=True )
 
         elif input[-1] == ';':
-                buff.completer = packet_completer
+                buff.completer = command_completer
 
         elif input[-1] == ",":
             buff.completer = WordCompleter(compFields,ignore_case=True )
     else: 
-        buff.completer = packet_completer
+        buff.completer = command_completer
 # The layout
 inputBuffer = Buffer( complete_while_typing=False, multiline=False, on_text_changed=onInputChange)
 #inputBuffer.text = 'SendCmd src: 45, dst: 32, cmd: 4'
@@ -139,15 +153,15 @@ def _(event):
 
 # @kb.add('enter')
 # def _(event):
-#     global packet_completer
+#     global command_completer
 #     new_text =outputField.text + "\n"+ inputBuffer.text
 #     outputField.text = new_text
 #     inputBuffer.text = '>>> '
-#     inputBuffer.completer = packet_completer
+#     inputBuffer.completer = command_completer
 #     testService(SERVICE)
 
 def accept(buff):
-    global packet_completer
+    global command_completer
     #new_text =outputField.text + "\n"+ inputBuffer.text
     #outputField.text = new_text
     commands = inputBuffer.text.split(';')
@@ -155,7 +169,7 @@ def accept(buff):
         parseCommand(cmd)
         time.sleep(0.05)
     #inputBuffer.text = '>>> '
-    inputBuffer.completer = packet_completer
+    inputBuffer.completer = command_completer
 
 
 #buff.on_text_changed = onInputChange;
@@ -189,9 +203,18 @@ def saveBufferToFile(fileName):
     file.close()
     printToConsole(" Log saved as: " + fileName)
 
-def printToConsole( text):
+def printToConsole( text, newLine=True, replace=False):
+
     global outputField
-    new_text =outputField.text + "\n"
+    new_text =outputField.text
+
+    
+    if replace:
+        new_text = new_text[:new_text.rfind('\n')]
+
+    if newLine:
+       new_text += "\n"
+
     new_text+=  text
 
     # Add text to output buffer.
@@ -199,6 +222,35 @@ def printToConsole( text):
         text=new_text, cursor_position=len(new_text))
 
     #outputField.text = new_text
+
+def cmdConnect(SERVICE, tokens):
+    SERVICE.connect(tokens[1])
+
+def cmdSaveLog(SERVICE, tokens):
+    saveBufferToFile(tokens[1])
+
+def cmdAck(SERVICE, tokens):
+    SERVICE.toggleAck()
+
+def cmdSilence(SERVICE, tokens):
+    SERVICE.toggleSilence(tokens[1])
+
+def cmdLoadSim(SERVICE, tokens):
+    if tokens[1] in PROTOCOL.sims:
+        load_sim(SERVICE, PROTOCOL.sims[tokens[1]])
+    else:
+        printToConsole(" Sim Profile '"+ tokens[1]+ "' not found..")
+
+commandMap = {
+    'connect': cmdConnect,
+    'savelog': cmdSaveLog,
+    'ack': cmdAck,
+    'silence': cmdSilence,
+    'loadsim': cmdLoadSim
+}
+
+
+
 
 def parseCommand(text):
 
@@ -209,28 +261,53 @@ def parseCommand(text):
     if len(words) == 0:
         printToConsole("")
         return
+    
 
-    if words[0].lower() == 'connect':
-        SERVICE.connect(words[1])
-        return 0
-
-    if words[0].lower() == 'savelog':
-        saveBufferToFile(words[1])
-        return 0
-
-    if words[0].lower() == 'ack':
-        SERVICE.toggleAck()
-        return 0
-
-    if words[0].lower() == 'silence':
-        SERVICE.toggleSilence(words[1])
+    
+    if words[0].lower() in commandMap:
+        commandMap[words[0].lower()](SERVICE, words)
         return 0
     
-    if words[0].lower() == 'loadsim':
-        if words[1] in PROTOCOL.sims:
-            load_sim(SERVICE, PROTOCOL.sims[words[1]])
+    if words[0].lower() in simCommands:
+
+        if len(words) == 2 and words[1].lower() == "help":
+            printToConsole(simCommands[words[0].lower()].getHelpString())
         else:
-            printToConsole(" Sim Profile '"+ words[1]+ "' not found..")
+            Pattern = re.compile(r',(?!(?:[^[]*\[[^]]*\])*[^[\]]*\])\s*') #splits by commas, ignoring commas in brackets
+            strArgs = Pattern.split(text[len(words[0]):])
+            
+            args = {}
+
+            #set arg defaults  
+            for arg in simCommands[words[0].lower()].args:
+                if arg.default != None:
+                    args[arg.name] = arg.default
+            
+            for strArg in strArgs:
+                strArg = strArg.strip()
+                try:
+                    if strArg != "":
+                        subFields = strArg.split(':')
+                        fname = subFields[0].strip()
+                        val = subFields[1].strip()
+                        args[fname] = val
+                except:
+                    printToConsole("Error Parsing argument: " + strArg)
+            
+            line = "\n>>> " + words[0] 
+
+            if len(args) > 0:
+                line += " ("
+                for arg in args:
+                    line += arg + ": " + str(args[arg]) + ", "
+                
+                line = line[:-2] + ")"
+
+            printToConsole(line)
+            
+
+            simCommands[words[0].lower()].f_handler(SERVICE, args)
+
         return 0
 
     packetType = words[0].strip()
@@ -252,19 +329,54 @@ def parseCommand(text):
     SERVICE.interfaces[0].sendPacket(newPacket)
 
 def load_sim(service, sim):
+    global command_completer
+    global simCommands
+    global simCommandHelp
     
     service.handlers.clear() #clear current handlers
 
     printToConsole(" Sim Profile '" + sim.name+ "' Loaded ")
 
     for key, value in sim.handlers.items():
-        fx = "def "+ key +"_handler(service,req, resp):\n\t" + value.replace('\n','\n\t')+"\n"
-        exec(fx)
-        exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
+        try:
+            fx = "def "+ key +"_handler(service,req, resp):\n\tglobal DataStore\n\t" + value.replace('\n','\n\t')+"\n"
+            exec(fx)
+            exec("service.handlers[\""+key+"\"] = "+key+ "_handler")
+        except:
+            printToConsole("Error loading handler: "+ key)
  
     if sim.init != "":
-        fx = sim.init
-        exec(fx)
+        try:
+            fx = sim.init
+            exec(fx)
+        except:
+            printToConsole("Error loading init function")
+        
+    commandNames = []
+    simNames = []
+    for packet in PROTOCOL.packets:
+        commandNames.append(packet.name)
+
+    for command in sim.commands:
+
+        try:
+            commandNames.append(command.name)
+            fx = "def "+ command.name +"_cmd_handler(service,args):\n\tglobal DataStore\n\t" + command.handler.replace('\n','\n\t')+"\n"
+            exec(fx)
+            simCommands[command.name] = command
+            exec("simCommands[\""+command.name+"\"].f_handler = "+command.name+ "_cmd_handler")
+            simCommandHelp[command.name] = command.getHelpString()
+        except: 
+            printToConsole("Error loading command: "+ command.name)
+
+
+
+    commandNames.append('connect')
+    commandNames.append('silence')
+    commandNames.append('saveLog')
+    commandNames.append('loadsim')
+    command_completer = WordCompleter(commandNames,ignore_case=True)
+    inputBuffer.completer = command_completer
 
 
 def run():
@@ -273,7 +385,7 @@ def run():
     global inputBuffer
     global PROTOCOL
     global SERVICE
-    global packet_completer
+    global command_completer
     global sim_completer
 
     init_args()
@@ -311,22 +423,22 @@ def run():
         return
 
 
-    packetNames = []
+    commandNames = []
     simNames = []
     for packet in PROTOCOL.packets:
-        packetNames.append(packet.name)
+        commandNames.append(packet.name)
 
-    packetNames.append('connect')
-    packetNames.append('silence')
-    packetNames.append('saveLog')
-    packetNames.append('loadsim')
+    commandNames.append('connect')
+    commandNames.append('silence')
+    commandNames.append('saveLog')
+    commandNames.append('loadsim')
 
     for key, value in PROTOCOL.sims.items():
         simNames.append(key)
 
-    packet_completer = WordCompleter(packetNames,ignore_case=True)
+    command_completer = WordCompleter(commandNames,ignore_case=True)
     sim_completer = WordCompleter(simNames, ignore_case=True)
-    inputBuffer.completer = packet_completer
+    inputBuffer.completer = command_completer
 
     outputField.text = "" #"Ctrl-C to quit"
     outputField.text += "______     _      ______          _        _   \n"
@@ -341,14 +453,14 @@ def run():
     if not args.connection == '':
         SERVICE.connect(args.connection)
 
+    if simProfile in PROTOCOL.sims:
+        load_sim(SERVICE, PROTOCOL.sims[simProfile])
+
     if not args.execute == '':
         commands = ' '.join(args.execute)
         commands = commands.split(';')
         for com in commands:
             parseCommand(com)
-
-    if simProfile in PROTOCOL.sims:
-        load_sim(SERVICE, PROTOCOL.sims[simProfile])
 
 
 

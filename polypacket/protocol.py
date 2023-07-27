@@ -85,10 +85,68 @@ def crc(fileName):
 
     return prev,"%X"%(prev & 0xFFFFFFFF)
 
+
+class simCommandArg:
+    def __init__(self, argItem):
+        self.name = ""
+        self.desc = ""
+        self.handler = ""
+        self.default = None
+
+        self.name = list(argItem.keys())[0]
+        val = list(argItem.values())[0]
+
+        #check if its a string 
+        if type(val) is str:
+            self.handler = val
+        else:
+            if 'desc' in val:
+                self.desc = val['desc']
+
+            if 'default' in val:
+                self.default = val['default']
+        
+
+class simCommand:
+    def __init__(self, name, cmdItem):
+        self.name = name
+        self.desc = ""
+        self.args = []
+        self.handler = ""
+
+        self.name = list(cmdItem.keys())[0]
+        val = list(cmdItem.values())[0]
+
+        if type(val) is str:
+            self.handler = val
+        else:
+            if 'args' in val:
+                for arg in val['args']:
+                    self.args.append(simCommandArg(arg))
+
+            if 'desc' in val:
+                self.desc = val['desc']
+
+
+            if 'handler' in val:
+                self.handler = val['handler']
+
+    def getHelpString(self):
+        helpStr = "Command: "+self.name+"\n"
+        helpStr += "  desc: "+self.desc+"\n"
+        helpStr += "  Args:\n"
+
+        for arg in self.args:
+            helpStr += "    "+arg.name+" - "+arg.desc+"\n"
+
+        return helpStr
+
+
 class simulator:
     def __init__(self,name, simItem):
         self.init =""
         self.handlers = {}
+        self.commands = []
         self.name = name
         
         if 'init' in simItem:
@@ -99,6 +157,10 @@ class simulator:
                 name = list(handler.keys())[0]
                 code  = list(handler.values())[0]
                 self.handlers[name] = code
+        
+        if 'commands' in simItem:
+            for command in simItem['commands']:
+                self.commands.append(simCommand(name,command))
 
 class fieldVal:
     def __init__(self, name):
@@ -733,28 +795,23 @@ def parseYAMLField(protocol, fieldItem):
     protocol.addField(newField)
     return newField
 
-def parseYAML(yamlFile):
-    data = open(yamlFile)
-    objProtocol = yaml.load(data , Loader=yaml.FullLoader)
 
-    protocol = protocolDesc(objProtocol['name'])
+def mergePlugin(objProtocol, plugin):
+    
+            pluginPath = None
+            prefix = None
+            usePrefix = False
 
-    if "prefix" in objProtocol:
-        protocol.prefix = objProtocol['prefix']
+            #if plugin is a string, assume it is a local file
+            if type(plugin) is str:
+                pluginPath = plugin
+            else:
+                #use key 
+                pluginPath = list(plugin.keys())[0]
 
-    if "desc" in objProtocol:
-        protocol.desc = objProtocol['desc']
-
-    if "defaultResponse" in objProtocol:
-        protocol.defaultResponse = objProtocol['defaultResponse']
-
-    addStandardPackets(protocol)
-
-    protocol.xmlName = os.path.basename(yamlFile)
-
-    #add in plugins 
-    if 'plugins' in  objProtocol:
-        for pluginPath in objProtocol['plugins']:
+                if 'usePrefix' in plugin:
+                    usePrefix = plugin['usePrefix']
+            
 
             pluginYaml = None
 
@@ -771,9 +828,9 @@ def parseYAML(yamlFile):
                 pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
             else:
                 print("Error loading plugin: " + pluginPath)
-                break
+                return
 
-            if 'prefix' in pluginYaml:
+            if 'prefix' in pluginYaml and usePrefix:
                 fieldPrefix = pluginYaml['prefix'] + '_'
                 packetPrefix = pluginYaml['prefix'][:1].capitalize() + pluginYaml['prefix'][1:]
                 
@@ -821,15 +878,73 @@ def parseYAML(yamlFile):
                             idx+=1
                     
                     objProtocol['packets'].append(packetItem)
-
-                    #output objProtocol to yaml file for debugging
-                    # with open('test.yml', 'w') as outfile:
-                    #     yaml.dump(objProtocol, outfile, default_flow_style=False)
-
-                            
+                
+                if 'structs' in pluginYaml:
 
 
+                    for structItem in pluginYaml['structs']:
+                        #change name to include plugin camel case prefix 
+                        name = packetPrefix + list(structItem.keys())[0]
 
+                        #rename fields 
+                        idx= 0
+                        if 'fields' in structItem[name]:
+                            for fieldItem in structItem[name]['fields']:
+                                
+                                # if item is a string 
+                                if type(fieldItem) is str:
+                                    #change name to include plugin prefix
+                                    fieldItem = fieldPrefix + fieldItem
+                                    structItem[name]['fields'][idx] = fieldItem
+
+                                else:   
+                                    #change name to include plugin prefix
+                                    fieldName = fieldPrefix + list(fieldItem.keys())[0]
+                                    fieldItem[fieldName] = fieldItem.pop(list(fieldItem.keys())[0])
+                                
+                                idx+=1
+                        
+                        objProtocol['structs'].append(structItem)
+                
+                if 'sims' in pluginYaml:
+                    for simItem in pluginYaml['sims']:
+                        #change name to include plugin camel case prefix 
+                        name = packetPrefix + list(simItem.keys())[0]
+                        simItem[name] = simItem.pop(list(simItem.keys())[0])
+
+
+                        
+                        objProtocol['sims'].append(simItem)
+                
+            
+
+                    
+
+
+
+def parseYAML(yamlFile):
+    data = open(yamlFile)
+    objProtocol = yaml.load(data , Loader=yaml.FullLoader)
+
+    protocol = protocolDesc(objProtocol['name'])
+
+    if "prefix" in objProtocol:
+        protocol.prefix = objProtocol['prefix']
+
+    if "desc" in objProtocol:
+        protocol.desc = objProtocol['desc']
+
+    if "defaultResponse" in objProtocol:
+        protocol.defaultResponse = objProtocol['defaultResponse']
+
+    addStandardPackets(protocol)
+
+    protocol.xmlName = os.path.basename(yamlFile)
+
+    #add in plugins 
+    if 'plugins' in  objProtocol:
+        for plugin in objProtocol['plugins']:
+            mergePlugin(objProtocol, plugin)
 
     for fieldItem in objProtocol['fields']:
 
