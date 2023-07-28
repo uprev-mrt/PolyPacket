@@ -86,7 +86,7 @@ sims:
   # naming a sim 'default' will cause it to load 
   - node: 
       # init signature is init(service):
-      # service has a blank dict called dataStore that can be used to store variables
+      # There is a global dicst named DataStore that can be used to store variables
       init: |
         DataStore['node'] = service.newStruct('Node')
         DataStore['node'].setField('sensorName', 'node01')
@@ -112,7 +112,7 @@ sims:
         - rename: 
             desc: renames the node
             args:
-              - name: {type: string, desc: new name for node}
+              - name: {desc: new name for node, default: 'node01'}
             handler: |
-              DataStore['node'].setField('sensorName', name)
+              DataStore['node'].setField('sensorName', args['name'])
               service.print('\nRenaming Sensor node:\n   name: {0}\n'.format(name))
