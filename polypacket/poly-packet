@@ -31,6 +31,7 @@ import sys
 import os
 import argparse
 import time
+import re
 
 args = None
 parser = None
@@ -55,6 +56,8 @@ DataStore ={}
 
 agentCommands = {}
 agentCommandHelp = {}
+
+namespace = {}
 
 
 
@@ -347,8 +350,12 @@ def load_agent(service, agent):
  
     if agent.init != "":
         try:
-            fx = agent.init
-            exec(fx)
+            fx = "service = SERVICE\n"
+            fx += agent.init
+
+            exec(fx, globals())
+
+
         except:
             printToConsole("Error loading init function")
         
