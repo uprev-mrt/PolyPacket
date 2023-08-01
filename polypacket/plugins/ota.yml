@@ -1,0 +1,538 @@
+---
+
+name: ota
+prefix: ota  #this defines the prefix used for functions and types in the code. This allows multiple protocols to be used in a project
+desc: This is a protocol for pushing over the air updates to devices. 
+
+# This is an example protocol for transferring a firmware image to a device, it can be used as is, or included in another protocol
+#
+
+plugins:
+  - ota
+
+###########################################################################################################
+#                                   FIELDS                                                                #
+###########################################################################################################
+
+fields:
+
+
+  - state:
+      type: enum
+      desc: Current State of OTA process
+      vals:
+        - IDLE: {desc: OTA process is not active, device is in normal operating mode }
+        - STARTED: {desc: Update Started, waiting for transfer to begin }
+        - BULK: {desc: Device is receiving bulk data from the update image }
+        - CLEANUP: {desc: Bulk data is done, now requesting any missing blocks from the firmware received }
+        - FINISHED: {desc: Full firmware image has been received and verified, waiting on reset to apply update }
+  
+
+  - addr: {type: uint32, desc: Address of block in firmware image }
+  - crc: {type: uint32, required: true, desc: crc pf firmware image }
+  - blockData: {type: uint8_t*64, required: true, desc: chunk of data from firmware image }
+  - size: {type: uint32, required: true, desc: Size of Firmware image or block }
+  - flags: 
+      type: flags
+      desc: flags for partition
+      vals:
+        - ACTIVE: {desc: Active Partition on dsk }
+        - VERIFIED: {desc: Partition image has been verified with CRC}
+        - NEW: {desc: Partition contains a new update image that has not been applied }
+
+  - imgSize: {type: uint32, required: true, desc: Size of Firmware image }
+  - path: {type: string, required: true, desc: path for dsk or partition }
+  - version: {type: string, required: true, desc: Version of firmware image }
+  - partitionID: {type: int16, required: true, desc: sequential ID of partition }
+  - dskID: {type: int16, required: true, desc: sequential ID of disk }
+  - partitionCount: {type: uint8, required: true, desc: number of partitions on disk }
+  - otaCmd: 
+      type: enum
+      desc: OTA Command
+      vals:
+        - BULK_COMPLETE: {desc: Bulk data transfer is complete, begin cleanup }
+        - ABORT: {desc: Abort the current OTA process }
+        - RESET: {desc: Reset the device to apply the update }
+
+
+###########################################################################################################
+#                                   Packets                                                               #
+###########################################################################################################
+packets:
+  - StartXfer:
+        desc: Tells node to begin the ota process
+        fields:
+          - dskID: {req: true, desc: ID of disk to update}
+          - path: {req: true, desc: path to partition to update (dskpath/partitionpath)}
+          - version
+          - size: {desc: Size of new firmware image}
+          - crc
+
+  - OtaCmd:
+      desc: OTA Command
+      fields:
+        - otaCmd: {req: true}
+
+  - BlockRequest:
+      desc: requests a block of data from the new firmware image
+      response: BlockData
+      fields:
+        - addr: {req: true}
+        - size : {desc: size of block being requested  ,req: true }
+
+  - BlockData:
+      desc: Contains a block of data from the firmware image
+      fields:
+        - addr:  {req: true, desc: Address of block in firmware image }
+        - size:  {desc: size of block being requested  ,req: true }
+        - blockData:  {req: true}
+
+  - dskInfoRequest:
+      desc: Requests the disk info from the node
+      response: dskInfo
+      fields:
+        - dskID: {req: true, desc: ID of disk to request}
+
+  - dskInfo:
+      desc: Contains the disk info for the node
+      fields:
+        - path
+        - dskID
+        - size
+        - partitionCount
+
+  - PartitionInfoRequest:
+      desc: Requests the partition info from the device, requires either a full path, or the partitionID and dskID
+      response: PartitionInfo
+      fields:
+        - partitionID: {req: true, desc: partition ID to request}
+        - dskID: {req: true, desc: disk ID to request}
+    
+  - PartitionInfo:
+      desc: Contains the partition info for the node
+      fields:
+        - path: {req: true}
+        - partitionID: {req: true}
+        - dskID: {req: true}
+        - size: {req: true}
+        - crc: {req: true}
+        - imgSize
+        - flags  
+        - addr: {req: true}
+        - version: {req: true}
+
+  - ClearPartition:
+      desc: Clears the partition data. requires either a full path, or the partitionID and dskID
+      fields:
+        - path 
+  
+  - ClearDsk:
+      desc: Clears the disk data. requires either a full path, or the partitionID and dskID
+      fields:
+        - path 
+  
+  - AddPartition:
+      desc: Adds a partition to the disk. requires either a full path, or the partitionID and dskID
+      fields:
+        - path 
+        - size
+        - addr
+
+  
+
+
+###########################################################################################################
+#                                   Structs                                                                #
+###########################################################################################################
+
+structs: []
+
+###########################################################################################################
+#                                   Agents                                                                #
+###########################################################################################################
+agents:
+  # This creates a sim named 'node' to load it, add '-s node' when running poly packet
+  # naming a sim 'default' will cause it to load 
+  - otaHost: 
+      # init signature is init(service):
+      # service has a blank dict called dataStore that can be used to store variables
+      init: |
+        service.silenceAll = True
+        DataStore['fileBuffer'] = bytearray()
+        DataStore['state'] = 'IDLE'
+        DataStore['nextDsk'] = 0
+        DataStore['nextPartition'] = 0
+        DataStore['dsks'] = {}
+
+
+
+      commands:
+            
+        - discover:
+            desc: Discover the disks and partitions on the remote device 
+            handler: |
+              service.sendPacket("dskInfoRequest", {"dskID": DataStore['nextDsk']})
+              DataStore['state'] = 'DISCOVERY'
+
+        - flash: 
+            desc: Flash a firmware image to the remote device
+            args: 
+              - file: { desc: path to firmware image, 'default': 'version.h'}
+              - version: {desc: version of firmware image, 'default': '0.0.0'}
+              - partition: {desc: path to partition to update (dskpath/partitionpath), 'default': 'envm/firmware'}
+              - dsk: {desc: ID or path of disk to update}
+              - addr: {desc: address to flash firmware image to, 'default': 0}
+            
+            handler: |              
+              if os.path.exists(file) == False:
+                print("File not found")
+                return
+
+              #load file 
+              with open(file, 'rb') as f:
+                DataStore['fileBuffer'] = f.read()
+              
+              crc = binascii.crc32(DataStore['fileBuffer'])
+
+              if 'partition' in args:
+                service.sendPacket("StartXfer", {"path": args['partition'], "version": args['version'], "size": len(DataStore['fileBuffer']), "crc": crc})
+              elif 'dsk' in args:
+                service.sendPacket("StartXfer", {"dskID": args['dsk'], "version": args['version'], "addr": args['addr'] , "size": len(DataStore['fileBuffer']), "crc": crc})
+
+              DataStore['state'] = 'OTA_STARTED'
+
+              service.sendPacket("OtaCmd", {"otaCmd": 0})
+
+
+
+        
+      #handlers fill out a function with the signature <name>_handler(service, req, resp):
+      # you can print out to the console with service.print(text)
+      handlers: 
+          
+        #Use packets/nodes can be copied to eachother. All shared fields that are present in the source will get copied to the destination
+        - dskInfo: |
+            dskId = req.getField('dskID')
+          
+            if(DataStore['state'] == 'DISCOVERY'):
+              if dskId > -1:
+                DataStore['dsks'][dskId] = {}
+                DataStore['dsks'][dskId]['path'] = req.getField('path')
+                DataStore['dsks'][dskId]['size'] = req.getField('size')
+                DataStore['dsks'][dskId]['partitionCount'] = req.getField('partitionCount')
+                DataStore['dsks'][dskId]['partitions'] = {}
+                DataStore['nextPartition'] = 0
+                service.sendPacket("PartitionInfoRequest", {"dskID": dskId, "partitionID": DataStore['nextPartition']})
+              else:
+                DataStore['nextPartition'] = 0
+                DataStore['state'] = 'IDLE'
+                DataStore['nextDsk'] =0
+                service.print("Discovery Complete!\n")
+                header = ""
+                header += "Disk/Partition"
+                header += " " * (30 - len(header))
+                header += "Address"
+                header += " " * (40 - len(header))
+                header += "Used/Size"
+                header += " " * (65 - len(header))
+                header += "Version"
+                header += " " * (75 - len(header))
+                header += "CRC"
+                header += " " * (90 - len(header))
+                header += "Flags"
+                header +="\n" + ("-" * 100) 
+                service.print(header)
+
+                for dskKey in DataStore['dsks']:
+                  dsk = DataStore['dsks'][dskKey]
+                  for partitionKey in dsk['partitions']:
+                    partition = dsk['partitions'][partitionKey]
+                    line = dsk['path'] + "/" + partition['path']
+                    line += " " * (30 - len(line))
+                    line += str(partition['addr'])
+                    line += " " * (40 - len(line))
+                    line += str(partition['imgSize']) + "/"+ str(partition['size'])
+                    line += " " * (65 - len(line))
+                    line += partition['version']
+                    line += " " * (75 - len(line))
+                    line += str(partition['crc'])
+                    line += " " * (90 - len(line))
+                    line += str(partition['flags'])
+                    service.print(line)
+                line += "\n" 
+
+          
+        
+        - PartitionInfo: |
+            partitionId = req.getField('partitionID')
+            dskId = req.getField('dskID')
+
+            if(DataStore['state'] == 'DISCOVERY'):
+              if partitionId > -1:
+                DataStore['dsks'][dskId]['partitions'][partitionId] = {}
+                DataStore['dsks'][dskId]['partitions'][partitionId] = {}
+                DataStore['dsks'][dskId]['partitions'][partitionId]['path'] = req.getField('path')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['size'] = req.getField('size')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['crc'] = req.getField('crc')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['imgSize'] = req.getField('imgSize')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['flags'] = req.getField('flags')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['addr'] = req.getField('addr')
+                DataStore['dsks'][dskId]['partitions'][partitionId]['version'] = req.getField('version')
+
+                DataStore['nextPartition'] += 1
+                service.sendPacket("PartitionInfoRequest", {"dskID": DataStore['nextDsk'], "partitionID": DataStore['nextPartition']})
+              else:
+                DataStore['nextPartition'] = 0
+                DataStore['nextDsk'] += 1
+                service.sendPacket("dskInfoRequest", {"dskID": DataStore['nextDsk']})
+        
+        - BlockRequest: | 
+            addr = req.getField('addr')
+            size = req.getField('size')
+
+            progress = int(((addr + size)/len(DataStore['fileBuffer'])) * 100)
+
+            
+
+            progLine = str(progress) + "% " 
+            progLine += ' ' * (4 - len(progLine))
+            progLine += ( '■' * progress) + ( '_' * (100 - progress))
+            replace = True
+            if addr == 0:
+              replace = False
+              
+            service.print(progLine, replace=replace)
+
+            if(progress == 100):
+              service.print("\n Flashing Complete");
+
+            if addr < len(DataStore['fileBuffer']):
+              resp.setField('addr', addr)
+              resp.setField('size', size)
+              #convert bytearray to array of hex strings 
+              data = DataStore['fileBuffer'][addr:addr+size]
+              strData = "["
+              for byte in data:
+                strData += hex(byte) + ","
+              strData = strData[:-1] + "]"
+              resp.setField('blockData', strData)
+
+  - otaDevice:
+      init: |
+        DataStore['dsks'] = []
+        DataStore['dsks'].append({'path': 'envm', 'size': 128000000, 'partitions': [
+              {'path':'bootloader', 'size': 1000000, 'crc': 0, 'imgSize': 0, 'flags': 0, 'addr': 0, 'version': '', 'data': []},
+              {'path':'firmware', 'size': 1000000, 'crc': 0, 'imgSize': 0, 'flags': 0, 'addr': 1000000, 'version': '', 'data': []}
+            ]})
+        DataStore['dsks'].append({'path': 'spi-flash', 'size': 128000000, 'partitions': [
+              {'path':'bootloader', 'size': 1000000, 'crc': 0, 'imgSize': 0, 'flags': 0, 'addr': 0, 'version': '', 'data': []},
+              {'path':'firmware', 'size': 1000000, 'crc': 0, 'imgSize': 0, 'flags': 0, 'addr': 1000000, 'version': '', 'data': []},
+              {'path':'fpga', 'size': 1000000, 'crc': 0, 'imgSize': 0, 'flags': 0, 'addr': 1000000, 'version': '', 'data': []},
+            ]})
+          
+        DataStore['state'] = 'IDLE'
+        DataStore['currentDsk'] = 0
+        DataStore['currentPartition'] = 0
+      
+      handlers:
+
+        - ping: pass
+
+        - dskInfoRequest: |
+            dskID = req.getField('dskID')
+
+            if dskID < len(DataStore['dsks']):
+              resp.setField('dskID', dskID)
+              resp.setField('path', DataStore['dsks'][dskID]['path'])
+              resp.setField('size', DataStore['dsks'][dskID]['size'])
+              resp.setField('partitionCount', len(DataStore['dsks'][dskID]['partitions']))
+            else: 
+              resp.setField('dskID', -1)
+
+        - PartitionInfoRequest: |
+            dskID = req.getField('dskID')
+            partitionID = req.getField('partitionID')
+            if dskID < len(DataStore['dsks']):
+              if partitionID < len(DataStore['dsks'][dskID]['partitions']):
+                resp.setField('dskID', dskID)
+                resp.setField('partitionID', partitionID)
+                resp.setField('path', DataStore['dsks'][dskID]['partitions'][partitionID]['path'])
+                resp.setField('size', DataStore['dsks'][dskID]['partitions'][partitionID]['size'])
+                resp.setField('crc', DataStore['dsks'][dskID]['partitions'][partitionID]['crc'])
+                resp.setField('imgSize', DataStore['dsks'][dskID]['partitions'][partitionID]['imgSize'])
+                resp.setField('flags', DataStore['dsks'][dskID]['partitions'][partitionID]['flags'])
+                resp.setField('addr', DataStore['dsks'][dskID]['partitions'][partitionID]['addr'])
+                resp.setField('version', DataStore['dsks'][dskID]['partitions'][partitionID]['version'])
+              else:
+                resp.setField('dskID', dskID)
+                resp.setField('partitionID', -1)
+            else:
+              resp.setField('dskID', -1)
+              resp.setField('partitionID', -1)
+
+        - StartXfer: |
+            dskID = 0
+            partitionID = 0
+            size = req.getField('size')
+            crc = req.getField('crc')
+            version = req.getField('version')
+
+
+            dskID = 0
+            partitionID = 0
+
+            if req.hasField('path'):
+              path = req.getField('path')
+              dskID = DataStore['dsks'].index([x for x in DataStore['dsks'] if x['path'] == path.split('/')[0]][0])
+              partitionID = DataStore['dsks'][dskID]['partitions'].index([x for x in DataStore['dsks'][dskID]['partitions'] if x['path'] == path.split('/')[1]][0])
+              dskpath = path.split('/')[0]
+              partitionpath = path.split('/')[1]
+
+              for index, dsk in enumerate(DataStore['dsks']):
+                if dsk['path'] == dskpath:
+                  dskID = index
+                  break
+              
+              for index, partition in enumerate(DataStore['dsks'][dskID]['partitions']):
+                if partition['path'] == partitionpath:
+                  partitionID = index
+                  break
+
+            elif req.hasField('dskID') and req.hasField('partitionID'):
+              dskID = dskID
+              partitionID = partitionID
+
+
+            DataStore['state'] = 'STARTED'
+            DataStore['currentDsk'] = dskID
+            DataStore['currentPartition'] = partitionID
+            DataStore['dsks'][dskID]['partitions'][partitionID]['data'] = bytearray(size)
+            DataStore['dsks'][dskID]['partitions'][partitionID]['crc'] = crc
+            DataStore['dsks'][dskID]['partitions'][partitionID]['imgSize'] = size
+            DataStore['dsks'][dskID]['partitions'][partitionID]['version'] = version
+
+        - ClearPartition: |
+            dskID = 0
+            partitionID = 0
+
+            if req.hasField('path'):
+              path = req.getField('path')
+              dskID = DataStore['dsks'].index([x for x in DataStore['dsks'] if x['path'] == path.split('/')[0]][0])
+              partitionID = DataStore['dsks'][dskID]['partitions'].index([x for x in DataStore['dsks'][dskID]['partitions'] if x['path'] == path.split('/')[1]][0])
+              dskpath = path.split('/')[0]
+              partitionpath = path.split('/')[1]
+
+              for index, dsk in enumerate(DataStore['dsks']):
+                if dsk['path'] == dskpath:
+                  dskID = index
+                  break
+              
+              for index, partition in enumerate(DataStore['dsks'][dskID]['partitions']):
+                if partition['path'] == partitionpath:
+                  partitionID = index
+                  break
+
+            elif req.hasField('dskID') and req.hasField('partitionID'):
+              dskID = dskID
+              partitionID = partitionID
+
+            DataStore['dsks'][dskID]['partitions'][partitionID]['data'] = bytearray(0)
+            DataStore['dsks'][dskID]['partitions'][partitionID]['crc'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['imgSize'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['flags'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['version'] = ''
+            
+        
+        - ClearDsk: |
+            dskID = 0
+
+            if req.hasField('path'):
+              path = req.getField('path')
+              dskID = DataStore['dsks'].index([x for x in DataStore['dsks'] if x['path'] == path][0])
+              dskpath = path
+
+              for index, dsk in enumerate(DataStore['dsks']):
+                if dsk['path'] == dskpath:
+                  dskID = index
+                  break
+
+            elif req.hasField('dskID'):
+              dskID = dskID
+
+            DataStore['dsks'][dskID]['partitions'] = {}
+
+        - AddPartition: |
+            dskID = 0
+            size = req.getField('size')
+            addr = req.getField('addr')
+            partitionLabel = ""
+
+            if req.hasField('dskID'):
+              partitionLabel = req.getField('path')
+              dskID = dskID
+            else:
+              path = req.getField('path')
+              dskpath = path.split('/')[0]
+              partitionLabel = path.split('/')[1]
+
+              for index, dsk in enumerate(DataStore['dsks']):
+                if dsk['path'] == dskpath:
+                  dskID = index
+                  break
+              
+
+
+            #iterate through partitions and find the last one with an addr lower 
+            partitionID = 0
+            for index, partition in enumerate(DataStore['dsks'][dskID]['partitions']):
+              if partition['addr'] < addr:
+                partitionID = index + 1
+              else:
+                break
+
+            #shift all partitions after the new one down by one
+
+            service.print("Adding Partition at :" + str(partitionID) )
+            DataStore['dsks'][dskID]['partitions'].insert(partitionID, {})
+
+
+            DataStore['dsks'][dskID]['partitions'][partitionID]['data'] = bytearray(size)
+            DataStore['dsks'][dskID]['partitions'][partitionID]['crc'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['imgSize'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['flags'] = 0
+            DataStore['dsks'][dskID]['partitions'][partitionID]['version'] = ''
+            DataStore['dsks'][dskID]['partitions'][partitionID]['size'] = size
+            DataStore['dsks'][dskID]['partitions'][partitionID]['addr'] = addr
+            DataStore['dsks'][dskID]['partitions'][partitionID]['path'] = partitionLabel
+
+
+        - OtaCmd: |
+              #Kick off the cleanup process
+              cmd = req.getField('otaCmd')
+
+              if cmd == 0: #BULK_COMPLETE
+                DataStore['state'] = 'CLEANUP'
+                service.sendPacket("BlockRequest", {"addr": 0, "size": 64})
+              elif cmd == 1: #ABORT
+                DataStore['state'] = 'IDLE'
+             
+        
+        - BlockData: |
+            addr = req.getField('addr')
+            size = req.getField('size')
+            blockData = req.getField('blockData')
+
+            DataStore['dsks'][DataStore['currentDsk']]['partitions'][DataStore['currentPartition']]['data'][addr:addr+size] = blockData
+            if addr+size >= DataStore['dsks'][DataStore['currentDsk']]['partitions'][DataStore['currentPartition']]['imgSize']:
+              DataStore['state'] = 'FINISHED'
+              DataStore['dsks'][DataStore['currentDsk']]['partitions'][DataStore['currentPartition']]['flags'] = 1
+              print("OTA Update Complete")
+            else:
+              service.sendPacket("BlockRequest", {"addr": addr+size, "size": 64})
+                
+
+              
+
+        
+        
+

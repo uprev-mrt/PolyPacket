@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
      name='polypacket',
-     version="1.0.72",
+     version="1.0.75",
      author="Jason Berger",
      author_email="JBerger@up-rev.com",
      description="A tool for building protocol services",
@@ -18,7 +18,7 @@ setuptools.setup(
      url="http://www.up-rev.com/",
      packages=setuptools.find_packages(),
      package_data={
-     'polypacket':['templates/*','examples/*']
+     'polypacket':['templates/*','examples/*', 'plugins/*']
      },
      install_requires=[
         'markdown',

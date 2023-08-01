@@ -86,7 +86,7 @@ def crc(fileName):
     return prev,"%X"%(prev & 0xFFFFFFFF)
 
 
-class simCommandArg:
+class agentCommandArg:
     def __init__(self, argItem):
         self.name = ""
         self.desc = ""
@@ -107,7 +107,7 @@ class simCommandArg:
                 self.default = val['default']
         
 
-class simCommand:
+class agentCommand:
     def __init__(self, name, cmdItem):
         self.name = name
         self.desc = ""
@@ -122,7 +122,7 @@ class simCommand:
         else:
             if 'args' in val:
                 for arg in val['args']:
-                    self.args.append(simCommandArg(arg))
+                    self.args.append(agentCommandArg(arg))
 
             if 'desc' in val:
                 self.desc = val['desc']
@@ -142,25 +142,25 @@ class simCommand:
         return helpStr
 
 
-class simulator:
-    def __init__(self,name, simItem):
+class agentulator:
+    def __init__(self,name, agentItem):
         self.init =""
         self.handlers = {}
         self.commands = []
         self.name = name
         
-        if 'init' in simItem:
-            self.init = simItem['init']
+        if 'init' in agentItem:
+            self.init = agentItem['init']
 
-        if 'handlers' in simItem:
-            for handler in simItem['handlers']:
+        if 'handlers' in agentItem:
+            for handler in agentItem['handlers']:
                 name = list(handler.keys())[0]
                 code  = list(handler.values())[0]
                 self.handlers[name] = code
         
-        if 'commands' in simItem:
-            for command in simItem['commands']:
-                self.commands.append(simCommand(name,command))
+        if 'commands' in agentItem:
+            for command in agentItem['commands']:
+                self.commands.append(agentCommand(name,command))
 
 class fieldVal:
     def __init__(self, name):
@@ -520,7 +520,7 @@ class protocolDesc:
         self.genUtility = False
         self.xmlName =""
         self.utilName =""
-        self.sims = {}
+        self.agents = {}
         self.defaultResponse = ""
 
     def service(self):
@@ -819,7 +819,7 @@ def mergePlugin(objProtocol, plugin):
             packetPrefix = ''
 
             #determine if plugin is local file or url 
-            if os.path.isfile(pluginPath):
+            if (pluginPath.endswith('.yaml') or pluginPath.endswith('.yml')) and os.path.isfile(pluginPath):
                 pluginData = open(pluginPath)
                 pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
             elif validators.url(pluginPath):
@@ -827,8 +827,16 @@ def mergePlugin(objProtocol, plugin):
                 pluginData = requests.get(pluginPath).text
                 pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
             else:
-                print("Error loading plugin: " + pluginPath)
-                return
+                # check if plugin is in plugins folder
+                #load plugin from plugins folder using pkg util
+                pluginData = pkgutil.get_data('pyProtocol', 'plugins/' + pluginPath + '.yml')
+
+                if pluginData is None:
+                    print("Error loading plugin: " + pluginPath)
+                    return
+                else :
+                    pluginYaml = yaml.load(pluginData , Loader=yaml.FullLoader)
+
 
             if 'prefix' in pluginYaml and usePrefix:
                 fieldPrefix = pluginYaml['prefix'] + '_'
@@ -906,15 +914,19 @@ def mergePlugin(objProtocol, plugin):
                         
                         objProtocol['structs'].append(structItem)
                 
+                #support legacy files using sims keyword
                 if 'sims' in pluginYaml:
-                    for simItem in pluginYaml['sims']:
+                    pluginYaml['agents'] = pluginYaml['sims']
+                
+                if 'agents' in pluginYaml:
+                    for agentItem in pluginYaml['agents']:
                         #change name to include plugin camel case prefix 
-                        name = packetPrefix + list(simItem.keys())[0]
-                        simItem[name] = simItem.pop(list(simItem.keys())[0])
+                        name = packetPrefix + list(agentItem.keys())[0]
+                        agentItem[name] = agentItem.pop(list(agentItem.keys())[0])
 
 
                         
-                        objProtocol['sims'].append(simItem)
+                        objProtocol['agents'].append(agentItem)
                 
             
 
@@ -1046,12 +1058,15 @@ def parseYAML(yamlFile):
             except: 
                 print("Error parsing: " + str(packetItem))
 
+    #support legacy files using sims keyword
+    if 'sims' in objProtocol:
+        objProtocol['agents'] = objProtocol['sims']
 
-    if 'sims' in  objProtocol: #experimental
-        for simItem in objProtocol['sims']:
-            name = list(simItem.keys())[0]
-            sim = list(simItem.values())[0]
-            protocol.sims[name] = simulator(name,sim)
+    if 'agents' in  objProtocol: 
+        for agentItem in objProtocol['agents']:
+            name = list(agentItem.keys())[0]
+            agent = list(agentItem.values())[0]
+            protocol.agents[name] = agentulator(name,agent)
          
     
     for packet in protocol.packets:

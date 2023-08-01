@@ -43,7 +43,7 @@ compVals = []
 
 connect_completer = WordCompleter(['serial:','udp:','tcp:'],ignore_case=True)
 
-sim_completer = ''
+agent_completer = ''
 
 command_completer = ''
 
@@ -53,8 +53,8 @@ outputField.text = "Ctrl-C to quit"
 
 DataStore ={}
 
-simCommands = {}
-simCommandHelp = {}
+agentCommands = {}
+agentCommandHelp = {}
 
 
 
@@ -83,12 +83,12 @@ def onInputChange(buff):
             if word.lower() == 'connect':
                 buff.completer = connect_completer
             
-            elif word.lower() == 'loadsim':
-                buff.completer = sim_completer
+            elif word.lower() == 'loadagent':
+                buff.completer = agent_completer
 
-            elif word.lower() in simCommands :
+            elif word.lower() in agentCommands :
                 compVals = ['help']
-                for arg in simCommands[word.lower()].args:
+                for arg in agentCommands[word.lower()].args:
                     compVals.append(arg.name + ':')
                 buff.completer = WordCompleter(compVals,ignore_case=True )
 
@@ -191,7 +191,7 @@ def init_args():
     parser.add_argument('-i', '--input', type=str, help='input file to parse', default="")
     parser.add_argument('-x', '--execute', nargs='+', help='Commands to execute on start, seperate with ;', default="")
     parser.add_argument('-c', '--connection', type=str, help='Connection string ex. tcp:localhost:8020', default="")
-    parser.add_argument('-s', '--sim', type=str, help='Specify a sim profile to use its behavior, or "none" to not use any', default="default")
+    parser.add_argument('-a', '--agent', type=str, help='Specify an agent profile to use its behavior, or "none" to not use any', default="default")
     parser.add_argument('-b', '--bytes', action='store_true', help='shows packet bytes', default=False)
     parser.add_argument('-m', '--meta', action='store_true', help='shows packet meta data', default=False)
     
@@ -235,18 +235,18 @@ def cmdAck(SERVICE, tokens):
 def cmdSilence(SERVICE, tokens):
     SERVICE.toggleSilence(tokens[1])
 
-def cmdLoadSim(SERVICE, tokens):
-    if tokens[1] in PROTOCOL.sims:
-        load_sim(SERVICE, PROTOCOL.sims[tokens[1]])
+def cmdLoadagent(SERVICE, tokens):
+    if tokens[1] in PROTOCOL.agents:
+        load_agent(SERVICE, PROTOCOL.agents[tokens[1]])
     else:
-        printToConsole(" Sim Profile '"+ tokens[1]+ "' not found..")
+        printToConsole(" agent Profile '"+ tokens[1]+ "' not found..")
 
 commandMap = {
     'connect': cmdConnect,
     'savelog': cmdSaveLog,
     'ack': cmdAck,
     'silence': cmdSilence,
-    'loadsim': cmdLoadSim
+    'loadagent': cmdLoadagent
 }
 
 
@@ -268,10 +268,10 @@ def parseCommand(text):
         commandMap[words[0].lower()](SERVICE, words)
         return 0
     
-    if words[0].lower() in simCommands:
+    if words[0].lower() in agentCommands:
 
         if len(words) == 2 and words[1].lower() == "help":
-            printToConsole(simCommands[words[0].lower()].getHelpString())
+            printToConsole(agentCommands[words[0].lower()].getHelpString())
         else:
             Pattern = re.compile(r',(?!(?:[^[]*\[[^]]*\])*[^[\]]*\])\s*') #splits by commas, ignoring commas in brackets
             strArgs = Pattern.split(text[len(words[0]):])
@@ -279,7 +279,7 @@ def parseCommand(text):
             args = {}
 
             #set arg defaults  
-            for arg in simCommands[words[0].lower()].args:
+            for arg in agentCommands[words[0].lower()].args:
                 if arg.default != None:
                     args[arg.name] = arg.default
             
@@ -306,7 +306,7 @@ def parseCommand(text):
             printToConsole(line)
             
 
-            simCommands[words[0].lower()].f_handler(SERVICE, args)
+            agentCommands[words[0].lower()].f_handler(SERVICE, args)
 
         return 0
 
@@ -328,16 +328,16 @@ def parseCommand(text):
 
     SERVICE.interfaces[0].sendPacket(newPacket)
 
-def load_sim(service, sim):
+def load_agent(service, agent):
     global command_completer
-    global simCommands
-    global simCommandHelp
+    global agentCommands
+    global agentCommandHelp
     
     service.handlers.clear() #clear current handlers
 
-    printToConsole(" Sim Profile '" + sim.name+ "' Loaded ")
+    printToConsole(" agent Profile '" + agent.name+ "' Loaded ")
 
-    for key, value in sim.handlers.items():
+    for key, value in agent.handlers.items():
         try:
             fx = "def "+ key +"_handler(service,req, resp):\n\tglobal DataStore\n\t" + value.replace('\n','\n\t')+"\n"
             exec(fx)
@@ -345,19 +345,19 @@ def load_sim(service, sim):
         except:
             printToConsole("Error loading handler: "+ key)
  
-    if sim.init != "":
+    if agent.init != "":
         try:
-            fx = sim.init
+            fx = agent.init
             exec(fx)
         except:
             printToConsole("Error loading init function")
         
     commandNames = []
-    simNames = []
+    agentNames = []
     for packet in PROTOCOL.packets:
         commandNames.append(packet.name)
 
-    for command in sim.commands:
+    for command in agent.commands:
 
         try:
             commandNames.append(command.name)
@@ -365,11 +365,10 @@ def load_sim(service, sim):
             for arg in command.args:
                 fx+= "\t"+arg.name + "= args.get('" + arg.name +"', None)\n"
             fx += "\n\t"+ command.handler.replace('\n','\n\t')+"\n"
-            printToConsole(fx)
             exec(fx)
-            simCommands[command.name] = command
-            exec("simCommands[\""+command.name+"\"].f_handler = "+command.name+ "_cmd_handler")
-            simCommandHelp[command.name] = command.getHelpString()
+            agentCommands[command.name] = command
+            exec("agentCommands[\""+command.name+"\"].f_handler = "+command.name+ "_cmd_handler")
+            agentCommandHelp[command.name] = command.getHelpString()
         except: 
             printToConsole("Error loading command: "+ command.name)
 
@@ -378,7 +377,7 @@ def load_sim(service, sim):
     commandNames.append('connect')
     commandNames.append('silence')
     commandNames.append('saveLog')
-    commandNames.append('loadsim')
+    commandNames.append('loadagent')
     command_completer = WordCompleter(commandNames,ignore_case=True)
     inputBuffer.completer = command_completer
 
@@ -390,7 +389,7 @@ def run():
     global PROTOCOL
     global SERVICE
     global command_completer
-    global sim_completer
+    global agent_completer
 
     init_args()
     args= parser.parse_args()
@@ -399,7 +398,7 @@ def run():
     #search_field = SearchToolbar()  # For reverse search.
     inputFile = args.input
 
-    simProfile = args.sim
+    agentProfile = args.agent
 
     if inputFile == "":
         print("No input file specified, use poly-make -t to create a template/example file")
@@ -428,20 +427,20 @@ def run():
 
 
     commandNames = []
-    simNames = []
+    agentNames = []
     for packet in PROTOCOL.packets:
         commandNames.append(packet.name)
 
     commandNames.append('connect')
     commandNames.append('silence')
     commandNames.append('saveLog')
-    commandNames.append('loadsim')
+    commandNames.append('loadagent')
 
-    for key, value in PROTOCOL.sims.items():
-        simNames.append(key)
+    for key, value in PROTOCOL.agents.items():
+        agentNames.append(key)
 
     command_completer = WordCompleter(commandNames,ignore_case=True)
-    sim_completer = WordCompleter(simNames, ignore_case=True)
+    agent_completer = WordCompleter(agentNames, ignore_case=True)
     inputBuffer.completer = command_completer
 
     outputField.text = "" #"Ctrl-C to quit"
@@ -457,8 +456,8 @@ def run():
     if not args.connection == '':
         SERVICE.connect(args.connection)
 
-    if simProfile in PROTOCOL.sims:
-        load_sim(SERVICE, PROTOCOL.sims[simProfile])
+    if agentProfile in PROTOCOL.agents:
+        load_agent(SERVICE, PROTOCOL.agents[agentProfile])
 
     if not args.execute == '':
         commands = ' '.join(args.execute)

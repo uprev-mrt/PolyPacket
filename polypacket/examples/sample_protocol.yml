@@ -79,10 +79,10 @@ structs:
         - sensorName
 
 ###########################################################################################################
-#                                   Sims                                                                  #
+#                                   Agents                                                                #
 ###########################################################################################################
-sims:
-  # This creates a sim named 'node' to load it, add '-s node' when running poly packet
+agents:
+  # This creates an agent named 'node' to load it, add '-a node' when running poly packet
   # naming a sim 'default' will cause it to load 
   - node: 
       # init signature is init(service):
