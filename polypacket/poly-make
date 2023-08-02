@@ -189,7 +189,8 @@ def main():
 
         if(docPath != ""):
             buildTemplate(protocol, 'templates/doc_template.rst', docPath +"/"+ protocol.name+"_ICD.rst")
-            buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
+            if args.html:
+                buildTemplate(protocol, 'templates/doc_template.html', docPath +"/"+ protocol.name+"_ICD.html")
             #pdfkit.from_file(xmlPath + protocol.name+"_ICD.html", xmlPath + protocol.name+"_ICD.pdf" )
 
         if(jsPath != ""):

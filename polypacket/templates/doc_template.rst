@@ -1,14 +1,14 @@
 
 
-${proto.name} ICD
+${proto.name} Protocol
 %for c in proto.name:
 =\
 %endfor
-====
+=========
 
 
 * Generated with `PolyPacket <https://mrt.readthedocs.io/en/latest/pages/polypacket/polypacket.html>`_ 
-* CRC: CRC: ${proto.hash}
+* CRC: ${proto.hash}
 %if not args.basic:
 * Transport Encoding: (COBS) `Consistent Overhead ByteStuffing <https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing>`_ 
 %endif
@@ -54,10 +54,10 @@ Fields:
 |              |            | * bit 15: Ack Flag                                                             |
 |              |            | * bit 14:0: Random 15 bit token                                                |
 +--------------+------------+--------------------------------------------------------------------------------+
-| **Checksum** | uint16     | ID for packet type                                                             |
+| **Checksum** | uint16     | 16 bit Checksum of data                                                        |
 +--------------+------------+--------------------------------------------------------------------------------+
 
-For more detailed information on how field data is serialized and encoded see the documentation for the `PolyPacket backend library <https://bitbucket.org/uprev/utility-polypacket/src/master/>`_ 
+For more detailed information on how field data is serialized and encoded see the documentation for the `PolyPacket backend library <https://gitlab.com/uprev/public/mrt/modules/Utilities/PolyPacket>`_ 
 
 
 %endif

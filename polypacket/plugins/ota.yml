@@ -7,8 +7,6 @@ desc: This is a protocol for pushing over the air updates to devices.
 # This is an example protocol for transferring a firmware image to a device, it can be used as is, or included in another protocol
 #
 
-plugins:
-  - ota
 
 ###########################################################################################################
 #                                   FIELDS                                                                #
