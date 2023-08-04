@@ -3,12 +3,12 @@ import setuptools
 
 
 
-with open("README.md", "r") as fh:
+with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
      name='polypacket',
-     version="1.0.77",
+     version="1.0.78",
      author="Jason Berger",
      author_email="JBerger@up-rev.com",
      description="A tool for building protocol services",
